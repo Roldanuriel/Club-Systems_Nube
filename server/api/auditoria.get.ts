@@ -3,7 +3,7 @@ import { requireUser } from '../utils/auth'
 import { db } from '../utils/db'
 
 export default defineEventHandler(async (event) => {
-  await requireUser(event, ['SUPERADMIN', 'ADMIN'])
+  await requireUser(event, ['SUPERADMIN'])
   const query = getQuery(event)
   const limit = Math.min(500, Math.max(1, Number(query.limit || 100)))
   const offset = Math.max(0, Number(query.offset || 0))

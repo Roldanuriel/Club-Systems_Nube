@@ -1,4 +1,5 @@
 <template>
+  <div class="pilot-badge">VERSIÓN PILOTO</div>
   <router-view />
 </template>
 
@@ -21,6 +22,22 @@ body {
   background: #e7effc;
   color: var(--text-dark);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.pilot-badge {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 10000;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  pointer-events: none;
 }
 
 .btn-primary {

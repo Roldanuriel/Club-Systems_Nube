@@ -12,9 +12,14 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Datos de asistencia inválidos' })
   const [periods] = await db().query<RowDataPacket[]>("SELECT id FROM periodos WHERE estado = 'ACTIVO' LIMIT 1")
   if (!periods.length) throw createError({ statusCode: 403, statusMessage: 'El periodo está cerrado' })
+  const period = periods[0]!
+  const [target] = await db().execute<RowDataPacket[]>('SELECT id_club FROM alumnos WHERE id=? AND periodo_id=? LIMIT 1', [parsed.data.alumno_id, period.id])
+  if (!target[0]) throw createError({ statusCode: 404, statusMessage: 'Alumno no encontrado en el periodo activo' })
+  const student = target[0]!
+  const [assignedDates] = await db().execute<RowDataPacket[]>('SELECT id FROM fechas_club WHERE periodo_id=? AND club_id=? AND fecha=? LIMIT 1', [period.id, student.id_club, parsed.data.fecha])
+  if (!assignedDates.length) throw createError({ statusCode: 403, statusMessage: 'Esta fecha no fue asignada al club por un administrador' })
   if (user.rol === 'MONITOR') {
-    const [students] = await db().execute<RowDataPacket[]>('SELECT id FROM alumnos WHERE id = ? AND id_club = ? LIMIT 1', [parsed.data.alumno_id, user.club_asignado])
-    if (!students.length) throw createError({ statusCode: 403, statusMessage: 'El alumno no pertenece al club asignado' })
+    if (Number(student.id_club) !== Number(user.club_asignado)) throw createError({ statusCode: 403, statusMessage: 'El alumno no pertenece al club asignado' })
   }
   await db().execute('INSERT INTO asistencias (id_alumno, fecha, presente) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE presente = VALUES(presente)', [parsed.data.alumno_id, parsed.data.fecha, parsed.data.presente ? 1 : 0])
   await audit(user.id, 'ASISTENCIA_ACTUALIZADA', `Alumno ${parsed.data.alumno_id}, fecha ${parsed.data.fecha}`)

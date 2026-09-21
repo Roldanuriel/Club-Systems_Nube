@@ -28,8 +28,8 @@
           </div>
 
           <transition name="fade">
-            <div v-if="errorMessage" class="alert alert-error">
-              <svg class="alert-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div v-if="errorMessage" class="login-alert login-alert-error">
+              <svg class="login-alert-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" stroke-width="1.5"/>
                 <path d="M10 7V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 <path d="M10 15H10.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -444,9 +444,9 @@ export default {
   color: #64748b;
 }
 
-.alert {
+.login-alert {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   padding: 0.875rem 1rem;
   border-radius: 10px;
@@ -461,17 +461,21 @@ export default {
   75% { transform: translateX(4px); }
 }
 
-.alert-error {
+.login-alert-error {
   background: #fef2f2;
   color: #991b1b;
   border: 1px solid #fecaca;
 }
 
-.alert-icon {
-  width: 18px;
-  height: 18px;
+.login-alert-icon {
+  display: block;
+  width: 18px !important;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px !important;
+  min-height: 18px;
+  max-height: 18px;
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .login-form {
@@ -939,22 +943,27 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .login-container {
+    width: 100%;
+    min-height: 100dvh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .login-layout {
     flex-direction: column;
+    min-height: 100dvh;
   }
 
   .brand-panel {
-    flex: 0 0 auto;
-    padding: 1.5rem 1rem;
+    flex: 0 0 56px;
+    min-height: 56px;
+    padding: 0;
   }
 
   .brand-content {
-    max-width: 100%;
-    padding: 0;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: none;
   }
 
   .brand-divider {
@@ -978,7 +987,9 @@ export default {
   }
 
   .form-panel {
-    padding: 1.5rem 1rem;
+    flex: 1;
+    align-items: flex-start;
+    padding: 1.5rem 1rem max(1.5rem, env(safe-area-inset-bottom));
   }
 
   .form-card {
@@ -988,19 +999,26 @@ export default {
 
 @media (max-width: 480px) {
   .type-selector {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
   }
 
   .form-panel {
-    padding: 1rem;
+    padding: 1.25rem 0.875rem max(1.25rem, env(safe-area-inset-bottom));
   }
 
   .form-header {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
   }
 
   .login-form {
-    gap: 1rem;
+    gap: 0.875rem;
   }
+
+  .form-title { font-size: 1.35rem; }
+  .form-subtitle { font-size: 0.82rem; }
+  .login-alert { padding: 0.75rem 0.875rem; margin-bottom: 1rem; font-size: 0.82rem; }
+  .type-btn { justify-content: center; padding: 0.75rem 0.625rem; }
+  .form-divider { margin: 1rem 0; }
 }
 </style>

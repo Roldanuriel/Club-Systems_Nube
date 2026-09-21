@@ -7,12 +7,12 @@ export default defineNuxtConfig({
     '~/assets/css/main.css'
   ],
   runtimeConfig: {
-    databaseHost: process.env.DB_HOST || '127.0.0.1',
-    databasePort: Number(process.env.DB_PORT || 3306),
-    databaseUser: process.env.DB_USER || '',
-    databasePassword: process.env.DB_PASSWORD || '',
-    databaseName: process.env.DB_NAME || '',
-    databaseSslCa: process.env.DB_SSL_CA || '',
+    databaseHost: process.env.PG_HOST || '127.0.0.1',
+    databasePort: Number(process.env.PG_PORT || 5432),
+    databaseUser: process.env.PG_USER || 'postgres',
+    databasePassword: process.env.PG_PASSWORD || '',
+    databaseName: process.env.PG_DATABASE || 'club_systems',
+    databaseSslCa: process.env.PG_SSL_CA || '',
     tokenPepper: process.env.TOKEN_PEPPER || '',
     public: { appName: 'SIRCE' }
   },
@@ -20,7 +20,7 @@ export default defineNuxtConfig({
     preset: 'node-server',
     externals: {
       inline: ['bcryptjs', 'zod'],
-      external: ['mysql2']
+      external: ['pg']
     }
   },
   typescript: { strict: true, typeCheck: true }

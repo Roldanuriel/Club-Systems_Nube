@@ -134,6 +134,7 @@
                 <th class="py-3 text-secondary text-uppercase small">Fecha Inicio</th>
                 <th class="py-3 text-secondary text-uppercase small">Fecha Fin</th>
                 <th class="pe-4 py-3 text-secondary text-uppercase small text-center">Estado</th>
+                <th class="pe-4 py-3 text-secondary text-uppercase small text-center">Consulta</th>
               </tr>
             </thead>
             <tbody>
@@ -147,15 +148,58 @@
                     {{ p.estado }}
                   </span>
                 </td>
+                <td class="pe-4 text-center">
+                  <button v-if="p.estado !== 'ACTIVO'" class="btn btn-sm btn-outline-primary" @click="consultarHistorial(p)">Ver clubes y alumnos</button>
+                  <span v-else class="text-muted small">Periodo actual</span>
+                </td>
               </tr>
               <tr v-if="periodos.length === 0">
-                <td colspan="5" class="text-center py-5 text-muted">No existen registros históricos de períodos.</td>
+                <td colspan="6" class="text-center py-5 text-muted">No existen registros históricos de períodos.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
+
+    <div v-if="historialSeleccionado" class="card border-0 shadow-sm mt-4 historial-periodo">
+      <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:#080A4C">
+        <div><strong>{{ historialSeleccionado.periodo.nombre }}</strong><span class="ms-2 opacity-75">Clubes y resultados del ciclo</span></div>
+        <button class="btn btn-sm btn-light" @click="cerrarHistorial">Cerrar</button>
+      </div>
+      <div class="card-body">
+        <div v-if="cargandoHistorial" class="text-center py-4">Cargando historial...</div>
+        <div v-else class="row g-3">
+          <div v-for="club in historialSeleccionado.clubs" :key="club.id" class="col-md-6 col-xl-4">
+            <button class="history-club-card" :class="{ active: clubHistorialSeleccionado?.id === club.id }" @click="clubHistorialSeleccionado = club">
+              <span class="history-club-name">{{ club.nombre }}</span>
+              <span class="history-club-count">{{ club.alumnos.length }} alumnos</span>
+              <span class="badge bg-success">{{ club.acreditados }} acreditados</span>
+              <span class="badge bg-danger">{{ club.no_acreditados }} no acreditados</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="clubHistorialSeleccionado" class="mt-4">
+          <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <h5 class="mb-0">{{ clubHistorialSeleccionado.nombre }}</h5>
+            <button class="btn btn-outline-primary" @click="imprimirListaEntrega(clubHistorialSeleccionado)">Imprimir lista de entrega y firmas</button>
+          </div>
+          <p v-if="clubHistorialSeleccionado.descripcion" class="text-muted">{{ clubHistorialSeleccionado.descripcion }}</p>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead><tr><th>Alumno</th><th>Número de control</th><th>Carrera</th><th>Semestre</th><th>Resultado</th><th>Constancia</th></tr></thead>
+              <tbody>
+                <tr v-for="alumno in clubHistorialSeleccionado.alumnos" :key="alumno.id"><td>{{ nombreAlumnoHistorial(alumno) }}</td><td>{{ alumno.numeroControl }}</td><td>{{ alumno.carrera_nombre || '—' }}</td><td>{{ alumno.semestre_id || '—' }}</td><td><span class="badge" :class="alumno.estado_periodo === 'ACREDITADO' ? 'bg-success' : 'bg-danger'">{{ alumno.estado_periodo === 'ACREDITADO' ? 'Acreditado' : 'No acreditado' }}</span></td><td><button v-if="alumno.estado_periodo === 'ACREDITADO'" class="btn btn-sm btn-success" @click="imprimirConstanciaReposicion(alumno, clubHistorialSeleccionado)">Constancia de reposición</button><span v-else class="text-muted small">No disponible</span></td></tr>
+                <tr v-if="!clubHistorialSeleccionado.alumnos.length"><td colspan="6" class="text-center text-muted py-4">Este club no tuvo alumnos registrados.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <Constancias ref="generadorConstancia" generator-only />
 
     <!-- Modal de Confirmación -->
     <div v-if="mostrarModalConfirmacion" class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6);">
@@ -191,11 +235,13 @@
 </template>
 
 <script>
-import axios from 'axios';
-import { BACKEND } from '../services/backend';
+import { jsPDF } from 'jspdf';
+import Constancias from './Constancias.vue';
+import { getPeriodoActivo, getPeriodos, getPeriodoDetalle, updatePeriodo, cerrarPeriodo as cerrarPeriodoApi } from '../services/api';
 
 export default {
   name: 'Periodos',
+  components: { Constancias },
   data() {
     return {
       periodos: [],
@@ -206,7 +252,10 @@ export default {
       procesando: false,
       guardando: false,
       mostrarModalConfirmacion: false,
-      yaEditado: false
+      yaEditado: false,
+      historialSeleccionado: null,
+      clubHistorialSeleccionado: null,
+      cargandoHistorial: false
     };
   },
   computed: {
@@ -219,7 +268,7 @@ export default {
     },
     puedeCerrar() {
       if (!this.periodoActivo || !this.periodoActivo.fecha_fin) return false;
-      const fechaFin = new Date(this.periodoActivo.fecha_fin);
+      const fechaFin = new Date(`${String(this.periodoActivo.fecha_fin).slice(0, 10)}T00:00:00`);
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       return fechaFin <= hoy;
@@ -229,14 +278,65 @@ export default {
     this.cargarPeriodos();
   },
   methods: {
+    limpiarNombreArchivo(valor) { return String(valor || 'documento').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_'); },
+    async imprimirConstanciaReposicion(alumno, club) {
+      if (alumno.estado_periodo !== 'ACREDITADO') return;
+      try {
+        await this.$refs.generadorConstancia.generarReposicionHistorica({
+          alumno,
+          club,
+          periodo: this.historialSeleccionado?.periodo || {}
+        });
+      } catch (error) {
+        this.$emit('show-error', error.message || 'No se pudo generar la constancia');
+      }
+    },
+    imprimirListaEntrega(club) {
+      const periodo = this.historialSeleccionado?.periodo || {};
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+      const ancho = doc.internal.pageSize.getWidth(); const alto = doc.internal.pageSize.getHeight();
+      const columnas = [12, 22, 92, 122, 187, 207, 242, ancho - 12];
+      const encabezado = () => {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text('LISTA DE ENTREGA DE CONSTANCIAS / NOTIFICACIÓN DE RESULTADOS', ancho / 2, 14, { align: 'center' });
+        doc.setFontSize(10); doc.text(`Club: ${club.nombre}    Ciclo: ${periodo.nombre || ''}`, 12, 22);
+        doc.setFontSize(8); const titulos = ['No.', 'Alumno', 'Control', 'Carrera', 'Sem.', 'Resultado', 'Firma de recibido'];
+        titulos.forEach((titulo, i) => doc.text(titulo, columnas[i] + 1.5, 31));
+        doc.line(12, 34, ancho - 12, 34);
+      };
+      encabezado(); let y = 42;
+      club.alumnos.forEach((alumno, index) => {
+        if (y > alto - 18) { doc.addPage(); encabezado(); y = 42; }
+        const values = [String(index + 1), this.nombreAlumnoHistorial(alumno), String(alumno.numeroControl || ''), String(alumno.carrera_nombre || ''), String(alumno.semestre_id || ''), alumno.estado_periodo === 'ACREDITADO' ? 'ACREDITÓ' : 'NO ACREDITÓ', ''];
+        values.forEach((value, i) => { if (i < 6) doc.text(doc.splitTextToSize(value, columnas[i + 1] - columnas[i] - 3)[0] || '', columnas[i] + 1.5, y); });
+        doc.line(12, y + 5, ancho - 12, y + 5); y += 12;
+      });
+      doc.setFontSize(8); doc.text('La firma acredita la recepción de la constancia o la notificación del resultado del ciclo.', 12, alto - 8);
+      doc.save(`Lista_entrega_${this.limpiarNombreArchivo(club.nombre)}_${this.limpiarNombreArchivo(periodo.nombre)}.pdf`);
+    },
+    nombreAlumnoHistorial(alumno) { return `${alumno.nombre || ''} ${alumno.apellidoP || ''} ${alumno.apellidoM || ''}`.replace(/\s+/g, ' ').trim(); },
+    async consultarHistorial(periodo) {
+      this.cargandoHistorial = true;
+      this.historialSeleccionado = { periodo, clubs: [] };
+      this.clubHistorialSeleccionado = null;
+      try {
+        const response = await getPeriodoDetalle(periodo.id);
+        this.historialSeleccionado = response.data;
+        this.clubHistorialSeleccionado = response.data?.clubs?.[0] || null;
+        this.$nextTick(() => document.querySelector('.historial-periodo')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      } catch (error) {
+        this.historialSeleccionado = null;
+        this.$emit('show-error', error.message || 'No se pudo cargar el historial del ciclo');
+      } finally { this.cargandoHistorial = false; }
+    },
+    cerrarHistorial() { this.historialSeleccionado = null; this.clubHistorialSeleccionado = null; },
     formatearFecha(fecha) {
       if (!fecha) return '-';
       const opts = { day: '2-digit', month: 'long', year: 'numeric' };
-      return new Date(fecha).toLocaleDateString('es-MX', opts);
+      return new Date(`${String(fecha).slice(0, 10)}T00:00:00`).toLocaleDateString('es-MX', opts);
     },
     obtenerFechaCompleta(fecha) {
       if (!fecha) return '-';
-      const d = new Date(fecha);
+      const d = new Date(`${String(fecha).slice(0, 10)}T00:00:00`);
       const day = d.getDate();
       const opts = { month: 'long', year: 'numeric' };
       const monthYear = d.toLocaleDateString('es-MX', opts);
@@ -244,16 +344,13 @@ export default {
     },
     async cargarPeriodos() {
       try {
-        const [resActivo, resTodos] = await Promise.all([
-          axios.get(`${BACKEND}/periodos?action=activo`),
-          axios.get(`${BACKEND}/periodos`)
-        ]);
+        const [resActivo, resTodos] = await Promise.all([getPeriodoActivo(), getPeriodos()]);
 
-        if (resActivo.data.status === 'success' && resActivo.data.data) {
-          this.periodoActivo = resActivo.data.data;
-          this.periodoEditando = { ...resActivo.data.data };
-          this.periodoOriginal = { ...resActivo.data.data };
-          this.yaEditado = this.periodoActivo.ya_editado === 1;
+        if (resActivo.status === 'success' && resActivo.data) {
+          this.periodoActivo = resActivo.data;
+          this.periodoEditando = { ...resActivo.data };
+          this.periodoOriginal = { ...resActivo.data };
+          this.yaEditado = Number(this.periodoActivo.ya_editado) === 1;
         } else {
           this.periodoActivo = null;
           this.periodoEditando = {};
@@ -261,8 +358,8 @@ export default {
           this.yaEditado = false;
         }
 
-        if (resTodos.data.status === 'success') {
-          this.periodos = resTodos.data.data;
+        if (resTodos.status === 'success') {
+          this.periodos = Array.isArray(resTodos.data) ? resTodos.data : [];
         }
       } catch (error) {
         this.$emit("show-error", "Error al cargar los períodos");
@@ -280,30 +377,30 @@ async guardarCambios() {
       
       this.guardando = true;
       try {
-        const res = await axios.put(`${BACKEND}/periodos/${this.periodoEditando.id}`, {
+        const res = await updatePeriodo(this.periodoEditando.id, {
           nombre: this.periodoEditando.nombre,
           fecha_inicio: this.periodoEditando.fecha_inicio,
           fecha_fin: this.periodoEditando.fecha_fin,
           ya_editado: 1
         });
         
-        if (res.data.status === 'success') {
+        if (res.status === 'success') {
           this.periodoOriginal = { ...this.periodoEditando };
           this.periodoActivo = { ...this.periodoEditando };
           this.periodoActivo.ya_editado = 1;
           this.yaEditado = true;
           this.editando = false;
-          this.$emit("show-toast", "Período atualizado correctamente");
+          this.$emit("show-toast", "Período actualizado correctamente");
           this.$emit("log", {
             accion: "Editar",
             tipo: "periodo",
             descripcion: `Se actualizó el período ${this.periodoEditando.nombre}`
           });
         } else {
-          throw new Error(res.data.message || "No se pudo guardar");
+          throw new Error(res.message || "No se pudo guardar");
         }
       } catch (error) {
-        this.$emit("show-error", "Error al guardar: " + (error.response?.data?.message || error.message));
+        this.$emit("show-error", "Error al guardar: " + (error.message || 'No se pudo actualizar'));
       } finally {
         this.guardando = false;
       }
@@ -312,8 +409,8 @@ async guardarCambios() {
       this.procesando = true;
       this.mostrarModalConfirmacion = false;
       try {
-        const res = await axios.post(`${BACKEND}/periodos?action=cerrar`);
-        if (res.data.status === 'success') {
+        const res = await cerrarPeriodoApi();
+        if (res.status === 'success') {
           this.$emit("log", {
             accion: "Cerrar",
             tipo: "periodo",
@@ -324,10 +421,10 @@ async guardarCambios() {
           this.$emit("request-reload-alumnos");
           this.$emit("refresh");
         } else {
-          throw new Error(res.data.message || "No se pudo cerrar el período.");
+          throw new Error(res.message || "No se pudo cerrar el período.");
         }
       } catch (error) {
-        this.$emit("show-error", "Error crítico: " + (error.response?.data?.message || error.message));
+        this.$emit("show-error", "Error crítico: " + (error.message || 'No se pudo cerrar el período'));
       } finally {
         this.procesando = false;
       }
@@ -347,4 +444,9 @@ async guardarCambios() {
   background-color: #e9ecef;
   opacity: 0.7;
 }
+.history-club-card { width: 100%; min-height: 130px; padding: 16px; text-align: left; border: 2px solid #e2e8f0; border-radius: 12px; background: #fff; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; transition: .2s ease; }
+.history-club-card:hover, .history-club-card.active { border-color: #4c38ff; box-shadow: 0 7px 20px rgba(76,56,255,.14); }
+.history-club-name { width: 100%; font-weight: 700; font-size: 1.05rem; color: #1e293b; }
+.history-club-count { width: 100%; color: #64748b; font-size: .85rem; }
+.historial-periodo { scroll-margin-top: 1rem; }
 </style>

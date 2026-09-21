@@ -16,10 +16,14 @@ const schema = z.object({
 }).refine(value => Object.keys(value).length > 0)
 
 export default defineEventHandler(async (event) => {
-  const actor = await requireUser(event, ['SUPERADMIN'])
+  const actor = await requireUser(event)
   const id = positiveId(getRouterParam(event, 'id'))
   const parsed = schema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 422, statusMessage: 'Datos del usuario inválidos' })
+  const changedFields = Object.keys(parsed.data)
+  if (actor.rol !== 'SUPERADMIN' && (actor.id !== id || changedFields.length !== 1 || changedFields[0] !== 'foto')) {
+    throw createError({ statusCode: 403, statusMessage: 'Solo puedes cambiar tu propia foto de perfil' })
+  }
   const fields: string[] = []; const values: Array<string | number | null> = []
   for (const [key, raw] of Object.entries(parsed.data)) {
     let value = raw as string | number | null

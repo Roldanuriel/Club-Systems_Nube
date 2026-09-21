@@ -2,8 +2,62 @@
   <div>
     <h4 class="text-primary mb-3">Evaluaciones</h4>
 
+    <ul class="nav nav-tabs mb-4">
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: vista === 'evaluaciones' }" @click="vista = 'evaluaciones'">Evaluaciones de alumnos</button>
+      </li>
+      <li v-if="puedeGestionarFormatos" class="nav-item">
+        <button class="nav-link" :class="{ active: vista === 'formato' }" @click="vista = 'formato'">Formato de evaluación</button>
+      </li>
+    </ul>
+
+    <div v-if="vista === 'formato' && puedeGestionarFormatos" class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="mb-2">Cargar formato de evaluación</h5>
+        <p class="text-muted">Carga el documento vigente. Al activarlo quedará disponible como referencia para las evaluaciones de los monitores.</p>
+        <div v-if="formatoMensaje" class="alert" :class="formatoError ? 'alert-danger' : 'alert-success'">{{ formatoMensaje }}</div>
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-5">
+            <label class="form-label">Nombre o ciclo del formato</label>
+            <input v-model="formatoNombre" class="form-control" placeholder="Ejemplo: Evaluación 2026">
+          </div>
+          <div class="col-lg-5">
+            <label class="form-label">Archivo del formato</label>
+            <input ref="formatoArchivo" class="form-control" type="file" accept="application/pdf,image/jpeg,image/png" @change="formatoSeleccionado = $event.target.files[0] || null">
+          </div>
+          <div class="col-lg-2">
+            <button class="btn btn-primary w-100" :disabled="subiendoFormato || !formatoSeleccionado || !formatoNombre.trim()" @click="cargarFormato">
+              {{ subiendoFormato ? 'Cargando…' : 'Cargar' }}
+            </button>
+          </div>
+        </div>
+        <small class="text-muted d-block mt-2">Formatos permitidos: PDF, JPG o PNG; máximo 5 MB.</small>
+
+        <hr>
+        <h6>Formatos cargados</h6>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Nombre</th><th>Archivo</th><th>Fecha</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+              <tr v-for="formato in formatosEvaluacion" :key="formato.id">
+                <td>{{ nombreFormato(formato) }}</td>
+                <td>{{ formato.nombre_original }}</td>
+                <td>{{ formatearFechaFormato(formato.creado_en) }}</td>
+                <td><span class="badge" :class="Number(formatoActivoId) === Number(formato.id) ? 'bg-success' : 'bg-secondary'">{{ Number(formatoActivoId) === Number(formato.id) ? 'Vigente' : 'Inactivo' }}</span></td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary me-2" @click="abrirFormato(formato)">Ver</button>
+                  <button v-if="Number(formatoActivoId) !== Number(formato.id)" class="btn btn-sm btn-success" @click="activarFormato(formato)">Activar</button>
+                </td>
+              </tr>
+              <tr v-if="!formatosEvaluacion.length"><td colspan="5" class="text-center text-muted py-4">Todavía no se han cargado formatos de evaluación.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- Búsqueda de alumnos -->
-    <div class="mb-4">
+    <div v-if="vista === 'evaluaciones'" class="mb-4">
       <input
         v-model="searchQuery"
         type="text"
@@ -24,7 +78,7 @@
     </div>
 
     <!-- Detalle de alumno seleccionado via búsqueda -->
-    <div v-if="selectedStudent" class="card mb-4 border-primary shadow-sm">
+    <div v-if="vista === 'evaluaciones' && selectedStudent" class="card mb-4 border-primary shadow-sm">
       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h6 class="mb-0">Evaluación de: {{ selectedStudent.nombre }} {{ selectedStudent.apellidoP }} {{ selectedStudent.apellidoM }}</h6>
         <button class="btn btn-sm btn-light" @click="selectedStudent = null">Cerrar</button>
@@ -58,7 +112,7 @@
 
     <!-- Lista por Clubs -->
     <div
-      v-for="club in sortedClubs"
+      v-for="club in vista === 'evaluaciones' ? sortedClubs : []"
       :key="club.id"
       class="card mb-4 shadow-sm"
     >
@@ -246,14 +300,22 @@
 </template>
 
 <script>
-import { getAsistenciasPorClub, getFirmas, saveConfig, getEvaluatedStudents } from "../services/api";
+import { getAsistenciasPorClub, getFirmas, saveConfig, getConfig, getEvaluatedStudents, getDocumentos, uploadDocumento } from "../services/api";
 
 export default {
   name: "Evaluaciones",
-  props: ["clubs", "alumnos", "usuarios", "carreras"],
+  props: ["clubs", "alumnos", "usuarios", "carreras", "usuarioActual"],
   data() {
     return {
       searchQuery: "",
+      vista: "evaluaciones",
+      formatosEvaluacion: [],
+      formatoActivoId: null,
+      formatoNombre: "",
+      formatoSeleccionado: null,
+      subiendoFormato: false,
+      formatoMensaje: "",
+      formatoError: false,
       searchSuggestions: [],
       selectedStudent: null,
       previewData: null,
@@ -268,6 +330,10 @@ export default {
     };
   },
   computed: {
+    puedeGestionarFormatos() {
+      const rol = String(this.usuarioActual?.rol || this.usuarioActual?.tipo || '').toUpperCase();
+      return rol === 'SUPERADMIN' || rol === 'ADMIN';
+    },
     sortedClubs() {
       if (!this.clubs) return [];
       const tipoOrden = { 'DEPORTIVO': 1, 'CULTURAL': 2 };
@@ -283,6 +349,70 @@ export default {
     }
   },
   methods: {
+    async cargarFormatos() {
+      if (!this.puedeGestionarFormatos) return;
+      try {
+        const [documentos, config] = await Promise.all([
+          getDocumentos({ tipo: 'OTRO', limit: 200 }),
+          getConfig('formato_evaluacion_activo')
+        ]);
+        this.formatosEvaluacion = documentos.filter((documento) => String(documento.concepto || '').startsWith('FORMATO_EVALUACION:'));
+        this.formatoActivoId = config?.data?.valor || null;
+      } catch (error) {
+        this.formatoMensaje = error.message || 'No se pudieron cargar los formatos';
+        this.formatoError = true;
+      }
+    },
+    nombreFormato(formato) { return String(formato.concepto || '').replace(/^FORMATO_EVALUACION:/, '') || 'Formato de evaluación'; },
+    formatearFechaFormato(valor) { return valor ? new Date(valor).toLocaleDateString('es-MX') : '-'; },
+    async cargarFormato() {
+      if (!this.formatoSeleccionado || !this.formatoNombre.trim()) return;
+      this.subiendoFormato = true;
+      this.formatoMensaje = '';
+      try {
+        const form = new FormData();
+        form.append('tipo', 'OTRO');
+        form.append('concepto', `FORMATO_EVALUACION:${this.formatoNombre.trim()}`);
+        form.append('archivo', this.formatoSeleccionado);
+        const resultado = await uploadDocumento(form);
+        await saveConfig('formato_evaluacion_activo', String(resultado.data.id));
+        this.formatoMensaje = 'Formato cargado y activado correctamente.';
+        this.formatoError = false;
+        this.formatoNombre = '';
+        this.formatoSeleccionado = null;
+        if (this.$refs.formatoArchivo) this.$refs.formatoArchivo.value = '';
+        await this.cargarFormatos();
+      } catch (error) {
+        this.formatoMensaje = error.message || 'No se pudo cargar el formato';
+        this.formatoError = true;
+      } finally {
+        this.subiendoFormato = false;
+      }
+    },
+    async activarFormato(formato) {
+      try {
+        await saveConfig('formato_evaluacion_activo', String(formato.id));
+        this.formatoActivoId = formato.id;
+        this.formatoMensaje = `Se activó ${this.nombreFormato(formato)}.`;
+        this.formatoError = false;
+      } catch (error) {
+        this.formatoMensaje = error.message || 'No se pudo activar el formato';
+        this.formatoError = true;
+      }
+    },
+    async abrirFormato(formato) {
+      try {
+        const response = await fetch(`/api/documentos/${formato.id}`, { headers: { Authorization: `Bearer ${sessionStorage.getItem('auth_token') || ''}` } });
+        if (!response.ok) throw new Error('No se pudo abrir el formato');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (error) {
+        this.formatoMensaje = error.message || 'No se pudo abrir el formato';
+        this.formatoError = true;
+      }
+    },
     async loadAllData() {
       // Inicializar todos los clubs como colapsados primero
       for (const club of this.clubs) {
@@ -437,6 +567,7 @@ export default {
   },
   async mounted() {
     await this.loadCargos();
+    await this.cargarFormatos();
     await this.loadAllData();
     // Auto-refresco cada 30 segundos
     this.refreshInterval = setInterval(() => this.loadAllData(), 30000);

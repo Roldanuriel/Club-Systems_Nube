@@ -6,5 +6,8 @@ release/
 .data/
 .env
 uploads/
+.postgresql/
+postgresql-*.zip
+.npm-cache/
 
 .env

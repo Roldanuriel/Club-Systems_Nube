@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="{ 'constancias-generator': generatorOnly }">
     <h3 class="text-primary mb-4">Constancias</h3>
 
     <!-- Búsqueda de alumnos -->
@@ -203,7 +203,7 @@
     </button>
 
     <!-- Modal/Vista previa imprimible -->
-    <div v-if="previewData" class="print-preview">
+    <div v-if="previewData" class="print-preview" :class="{ 'generator-only-preview': generatorOnly }">
       <div class="preview-documento">
         <div class="constancia A4" id="constancia">
 
@@ -369,7 +369,7 @@
         </div>
       </div>
 
-      <div class="acciones-preview p-3" style="width: 300px; background: #f8f9fa; border-left: 1px solid #dee2e6;">
+      <div v-if="!generatorOnly" class="acciones-preview p-3" style="width: 300px; background: #f8f9fa; border-left: 1px solid #dee2e6;">
         <h5 class="mb-3">Configuración de Firmas</h5>
         
         <div class="mb-3">
@@ -477,7 +477,14 @@ import JSZip from 'jszip';
 
 export default {
   name: "Constancias",
-  props: ["clubs", "alumnos", "fechas", "usuarios", "carreras"],
+  props: {
+    clubs: { type: Array, default: () => [] },
+    alumnos: { type: Array, default: () => [] },
+    fechas: { type: Array, default: () => [] },
+    usuarios: { type: Array, default: () => [] },
+    carreras: { type: Array, default: () => [] },
+    generatorOnly: { type: Boolean, default: false }
+  },
   data() {
     return {
       previewData: null,
@@ -890,6 +897,45 @@ export default {
         ...data,
       };
     },
+    async generarReposicionHistorica({ alumno, club, periodo }) {
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const inicio = new Date(`${String(periodo?.fecha_inicio || '').slice(0, 10)}T00:00:00`);
+      const fin = new Date(`${String(periodo?.fecha_fin || '').slice(0, 10)}T00:00:00`);
+      const faltas = Number(alumno?.faltas ?? 0);
+      const desempeno = alumno?.desempeno || (faltas <= 1 ? 'EXCELENTE' : faltas === 2 ? 'BUENO' : 'SUFICIENTE');
+
+      this.previewData = {
+        estudianteNombre: `${alumno?.nombre || ''} ${alumno?.apellidoP || ''} ${alumno?.apellidoM || ''}`.replace(/\s+/g, ' ').trim(),
+        numeroControl: alumno?.numeroControl || alumno?.control || 'SIN CONTROL',
+        carrera: alumno?.carrera_nombre || alumno?.carrera || 'SIN CARRERA',
+        club: String(club?.nombre || '').toLowerCase(),
+        desempeno,
+        valorNumerico: alumno?.valor_numerico ?? null,
+        mesInicio: Number.isNaN(inicio.getTime()) ? '' : meses[inicio.getMonth()],
+        mesFin: Number.isNaN(fin.getTime()) ? '' : meses[fin.getMonth()],
+        anioPeriodo: Number.isNaN(fin.getTime()) ? new Date().getFullYear() : fin.getFullYear(),
+        tipoActividad: this.tipoActividad(club)
+      };
+
+      await this.$nextTick();
+      await new Promise(resolve => setTimeout(resolve, 350));
+      const nodo = this.$el.querySelector('#constancia');
+      if (!nodo) throw new Error('No se pudo preparar la constancia oficial');
+      for (let intento = 0; typeof html2pdf === 'undefined' && intento < 20; intento += 1) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      if (typeof html2pdf === 'undefined') throw new Error('No se pudo cargar el generador de la constancia');
+
+      const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, '_')}_${this.previewData.numeroControl}`;
+      await html2pdf().set({
+        margin: [15, 15, 15, 15],
+        filename: `Constancia_${nombre}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, allowTaint: true, useCORS: true, logging: false, windowHeight: nodo.scrollHeight },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'letter' }
+      }).from(nodo).save();
+      this.previewData = null;
+    },
     generarPDF() {
       this.$nextTick(() => {
         setTimeout(() => {
@@ -1205,6 +1251,21 @@ export default {
 </script>
 
 <style scoped>
+.constancias-generator > :not(.print-preview) { display: none !important; }
+.generator-only-preview {
+  position: fixed !important;
+  left: -12000px !important;
+  right: auto !important;
+  top: 0 !important;
+  bottom: auto !important;
+  width: 245mm !important;
+  height: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  z-index: -1 !important;
+}
+.generator-only-preview .preview-documento { display: block !important; }
 .print-preview {
   position: fixed;
   inset: 0;

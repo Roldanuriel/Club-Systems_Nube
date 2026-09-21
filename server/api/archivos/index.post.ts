@@ -11,7 +11,7 @@ const allowed: Record<string, { extension: string; signature: (data: Buffer) => 
 }
 
 export default defineEventHandler(async event => {
-  const user = await requireUser(event, ['SUPERADMIN', 'ADMIN'])
+  const user = await requireUser(event, ['SUPERADMIN', 'ADMIN', 'MONITOR'])
   const parts = await readMultipartFormData(event)
   const file = parts?.find(part => part.name === 'foto' && part.filename)
   if (!file) throw createError({ statusCode: 400, statusMessage: 'Archivo "foto" requerido' })

@@ -2,7 +2,8 @@
   <div class="monitor-wrapper">
     <div class="d-flex flex-column monitor-background p-4 min-vh-100">
     <!-- PERFIL DEL MONITOR -->
-    <div class="card shadow-sm p-3 mb-3 bg-white d-flex flex-row align-items-center">
+    <div class="card profile-card shadow-sm p-3 mb-3 bg-white d-flex flex-row align-items-center">
+      <div class="profile-photo-area" title="Cambiar foto de perfil">
       <template v-if="resolveFotoUrl(usuarioActual.foto) && !usuarioActualImageError">
         <img
           :src="resolveFotoUrl(usuarioActual.foto)"
@@ -11,11 +12,17 @@
           width="80"
           height="80"
           style="object-fit: cover;"
+          @click="$refs.profilePhotoInput.click()"
           @error="handleUserImageError"
         />
       </template>
-      <div v-else class="rounded-circle me-3 d-flex align-items-center justify-content-center text-white fw-bold" style="width: 80px; height: 80px; background: linear-gradient(135deg, #080A4C 0%, #0066CC 100%); border: 3px solid rgba(255,255,255,0.5); font-size: 1.75rem;">
+      <div v-else class="rounded-circle me-3 d-flex align-items-center justify-content-center text-white fw-bold" style="width: 80px; height: 80px; background: linear-gradient(135deg, #080A4C 0%, #0066CC 100%); border: 3px solid rgba(255,255,255,0.5); font-size: 1.75rem;" @click="$refs.profilePhotoInput.click()">
         {{ getInitials(usuarioActual.nombre, usuarioActual.apellidoP) }}
+      </div>
+      <button type="button" class="profile-photo-button" :disabled="subiendoFoto" @click="$refs.profilePhotoInput.click()" aria-label="Cambiar foto de perfil">
+        {{ subiendoFoto ? '…' : '✎' }}
+      </button>
+      <input ref="profilePhotoInput" class="d-none" type="file" accept="image/jpeg,image/png,image/webp" @change="cambiarFotoPerfil" />
       </div>
       <div>
         <h4 class="text-primary mb-2">Registro de Asistencias</h4>
@@ -46,30 +53,28 @@
     </transition>
 
     <!-- CONTENEDOR DE ASISTENCIAS -->
-    <div class="card shadow-sm p-3 flex-grow-1 overflow-auto" style="max-height: 70vh;">
+    <div class="card attendance-card shadow-sm p-3 flex-grow-1">
       <h5 class="text-secondary mb-3">Asistencias del Club</h5>
 
-      <!-- AGREGAR NUEVA FECHA -->
-      <div class="mb-3">
-        <label for="nuevaFecha" class="form-label">Agregar nueva fecha:</label>
-        <div class="input-group">
-          <input
-            type="date"
-            id="nuevaFecha"
-            v-model="nuevaFecha"
-            class="form-control"
-          />
-          <button class="btn btn-success" @click="agregarFecha">Agregar</button>
+      <!-- TABLA DE ASISTENCIAS SIEMPRE VISIBLE PARA MOSTRAR FECHAS -->
+      <div v-if="fechasData.length" class="mobile-date-navigation" aria-label="Mover fechas">
+        <button type="button" @pointerdown.prevent="desplazarFechas(-1)" @keydown.enter.prevent="desplazarFechas(-1)" aria-label="Ver fechas anteriores">‹</button>
+        <span>Desliza o usa las flechas para ver las fechas</span>
+        <button type="button" @pointerdown.prevent="desplazarFechas(1)" @keydown.enter.prevent="desplazarFechas(1)" aria-label="Ver fechas siguientes">›</button>
+      </div>
+      <div class="attendance-table-layout">
+      <div v-if="alumnosClub.length" class="mobile-student-names" aria-label="Nombres de alumnos">
+        <div class="mobile-student-names__header">Nombre</div>
+        <div v-for="(alumno, index) in alumnosClub" :key="`mobile-name-${index}`" class="mobile-student-names__item">
+          {{ alumno.nombre }} {{ alumno.apellidoP }}
         </div>
       </div>
-
-
-      <!-- TABLA DE ASISTENCIAS SIEMPRE VISIBLE PARA MOSTRAR FECHAS -->
+      <div ref="attendanceScroll" class="attendance-table-scroll">
       <table class="table table-hover align-middle">
          <thead class="text-center modern-table-header">
            <tr>
              <th class="header-cell">Nombre</th>
-             <th v-for="fecha in fechasData" :key="fecha" class="header-cell">{{ fecha }}</th>
+             <th v-for="fecha in fechasData" :key="fecha" class="header-cell date-cell">{{ fechaCorta(fecha) }}</th>
              <th class="header-cell">Estatus</th>
              <th class="header-cell">Evaluación</th>
            </tr>
@@ -81,36 +86,40 @@
             </td>
           </tr>
           <tr v-else v-for="(alumno, index) in alumnosClub" :key="index">
-            <td>{{ alumno.nombre }} {{ alumno.apellidoP }}</td>
-            <td v-for="fecha in fechasData" :key="fecha" class="text-center">
-              <input
-                type="checkbox"
-                v-model="alumno.asistencias[fecha]"
-                @change="onToggleAsistencia(alumno, fecha)"
-              />
+            <td class="student-name">{{ alumno.nombre }} {{ alumno.apellidoP }}</td>
+            <td v-for="fecha in fechasData" :key="fecha" class="text-center date-cell">
+              <label class="attendance-tap-target" :aria-label="`Asistencia de ${alumno.nombre} para ${fecha}`">
+                <input
+                  type="checkbox"
+                  v-model="alumno.asistencias[fecha]"
+                  @change="onToggleAsistencia(alumno, fecha)"
+                />
+              </label>
             </td>
              <td class="text-center">
-               <span 
-                 class="status-pill" 
-                 :class="alumno.faltas < 3 ? 'status-accredited' : 'status-not-accredited'"
+             <span
+                 class="status-pill"
+                 :class="estadoAsistencia(alumno).clase"
                >
                  <span class="status-dot"></span>
-                 {{ alumno.faltas < 3 ? 'Acreditado' : 'No acreditado' }}
+                 {{ estadoAsistencia(alumno).texto }}
                </span>
              </td>
             <td class="text-center">
               <button
-                v-if="!isEvaluated(alumno)"
+                v-if="!isEvaluated(alumno) && puedeEvaluar(alumno)"
                 class="btn btn-sm btn-outline-primary"
                 @click="openEvalModal(alumno)"
               >
                 Evaluar
               </button>
-              <span v-else class="badge bg-secondary">Evaluado</span>
+              <span v-else-if="isEvaluated(alumno)" class="badge bg-secondary">Evaluado</span>
             </td>
           </tr>
         </tbody>
       </table>
+      </div>
+      </div>
 
       <!-- BOTÓN GUARDAR CAMBIOS (OPCIONAL) -->
       <div class="d-flex justify-content-end mt-3" v-if="alumnosClub.length">
@@ -239,12 +248,13 @@
 import axios from "axios";
 import { 
   getAsistenciasPorClub, 
-  crearFechaAsistencias, 
   actualizarAsistencia, 
   getAlumnos, 
   saveEvaluacion,
   getEvaluatedStudents,
-  getClubs
+  getClubs,
+  uploadFoto,
+  updateUsuario
 } from "../services/api";
 import { BACKEND } from "../services/backend";
 import { authService } from "../services/auth";
@@ -263,11 +273,11 @@ export default {
         club_nombre: null,
       },
       usuarioActualImageError: false,
+      subiendoFoto: false,
       monitor: { nombre: "", club: "" },
       clubsList: [],
       selectedClubId: null,
       assigning: false,
-      nuevaFecha: "",
       mensaje: { texto: "", tipo: "" },
       alumnosData: [],
       fechasData: [],
@@ -307,6 +317,65 @@ export default {
     },
   },
   methods: {
+    async cambiarFotoPerfil(event) {
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        this.mostrarMensaje('Selecciona una imagen JPG, PNG o WebP', 'alert-warning');
+        event.target.value = '';
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        this.mostrarMensaje('La imagen no debe exceder 2 MB', 'alert-warning');
+        event.target.value = '';
+        return;
+      }
+      this.subiendoFoto = true;
+      try {
+        const uploaded = await uploadFoto(file);
+        const userId = this.usuarioActual.id || authService.getUserId();
+        await updateUsuario(userId, { foto: uploaded.file });
+        this.usuarioActual.foto = uploaded.file;
+        this.usuarioActualImageError = false;
+        this.mostrarMensaje('Foto de perfil actualizada', 'alert-success');
+      } catch (error) {
+        this.mostrarMensaje(error?.message || 'No se pudo actualizar la foto', 'alert-danger');
+      } finally {
+        this.subiendoFoto = false;
+        if (event?.target) event.target.value = '';
+      }
+    },
+    desplazarFechas(direccion) {
+      const contenedor = this.$refs.attendanceScroll;
+      if (!contenedor) return;
+      const distancia = Number(direccion) * Math.max(220, contenedor.clientWidth * 0.95);
+      const limite = Math.max(0, contenedor.scrollWidth - contenedor.clientWidth);
+      const destino = Math.min(limite, Math.max(0, contenedor.scrollLeft + distancia));
+      contenedor.scrollLeft = destino;
+    },
+    fechaCorta(fecha) {
+      const partes = String(fecha || '').slice(0, 10).split('-');
+      return partes.length === 3 ? `${partes[2]}/${partes[1]}` : fecha;
+    },
+    fechaActualLocal() {
+      const hoy = new Date();
+      const year = hoy.getFullYear();
+      const month = String(hoy.getMonth() + 1).padStart(2, '0');
+      const day = String(hoy.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    },
+    calcularFaltas(asistencias = {}) {
+      return this.fechasData.filter((fecha) => asistencias[fecha] === false).length;
+    },
+    estadoAsistencia(alumno) {
+      if (!this.fechasData.length) return { texto: 'Pendiente', clase: 'status-pending' };
+      return alumno.faltas < 3
+        ? { texto: 'Acreditado', clase: 'status-accredited' }
+        : { texto: 'No acreditado', clase: 'status-not-accredited' };
+    },
+    puedeEvaluar(alumno) {
+      return this.estadoAsistencia(alumno).clase === 'status-accredited';
+    },
     resolveFotoUrl,
     getInitials(nombre, apellido) {
       let initials = "";
@@ -330,6 +399,7 @@ export default {
 
         if (response.data?.status === "success") {
           const datos = response.data.data;
+          this.usuarioActual.id = datos.id;
           this.usuarioActual.nombre = datos.nombre || "";
           this.usuarioActual.apellidoP = datos.apellidoP || "";
           this.usuarioActual.tipo = datos.tipo || sessionStorage.getItem("usuarioTipo") || "";
@@ -374,7 +444,7 @@ export default {
           this.fechasData.forEach(fecha => {
             if (!(fecha in map)) map[fecha] = false;
           });
-          return { ...al, asistencias: map, faltas: Object.values(map).filter(v => v === false).length };
+          return { ...al, asistencias: map, faltas: this.calcularFaltas(map) };
         });
         
         if (this.alumnosData.length > 0) {
@@ -426,24 +496,6 @@ export default {
         });
       }, 500);
     },
-    async agregarFecha() {
-      if (!this.nuevaFecha || !this.usuarioActual.club_asignado) return;
-      if (this.fechasData.includes(this.nuevaFecha)) {
-        this.mostrarMensaje("La fecha ya está registrada.", "alert-danger");
-        return;
-      }
-      try {
-        const registros = this.alumnosClub.map(a => ({ alumno_id: a.id, presente: false }));
-        await crearFechaAsistencias({ club_id: this.usuarioActual.club_asignado, fecha: this.nuevaFecha, registros });
-        this.fechasData.push(this.nuevaFecha);
-        this.fechasData.sort();
-        this.alumnosData.forEach(al => { if (!al.asistencias[this.nuevaFecha]) al.asistencias[this.nuevaFecha] = false; });
-        this.nuevaFecha = "";
-        this.mostrarMensaje("Fecha agregada correctamente.", "alert-success");
-      } catch (e) {
-        this.mostrarMensaje("Error al crear fecha", "alert-danger");
-      }
-    },
     async guardarCambios() {
       try {
         const promesas = [];
@@ -463,7 +515,7 @@ export default {
       const presente = !!alumno.asistencias[fecha];
       try {
         await actualizarAsistencia({ alumno_id: alumno.id, fecha, presente });
-        alumno.faltas = Object.values(alumno.asistencias).filter((v) => v === false).length;
+        alumno.faltas = this.calcularFaltas(alumno.asistencias);
       } catch (e) {
         alumno.asistencias[fecha] = !presente;
         this.mostrarMensaje('Error al actualizar asistencia', 'alert-danger');
@@ -693,6 +745,17 @@ export default {
     0 0 30px rgba(16, 185, 129, 0.3);
 }
 
+.status-pending {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.status-pending .status-dot {
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+}
+
 .status-not-accredited {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
   color: #ffffff;
@@ -793,6 +856,53 @@ export default {
   border-radius: 16px;
   overflow: hidden;
 }
+
+.attendance-table-scroll {
+  width: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  border-radius: 16px;
+}
+
+.attendance-table-layout { width: 100%; }
+.mobile-student-names { display: none; }
+.attendance-tap-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.mobile-date-navigation { display: none; }
+
+.profile-photo-area {
+  position: relative;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.profile-photo-button {
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #4c38ff;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
+}
+
+.student-name { min-width: 150px; }
+.date-cell { min-width: 72px; }
 
 .table tbody tr {
   transition: all 0.2s ease;
@@ -900,5 +1010,41 @@ export default {
 .form-select:focus {
   border-color: #1e3a5f;
   box-shadow: 0 0 0 4px rgba(30, 58, 95, 0.1);
+}
+
+@media (max-width: 600px) {
+  .monitor-wrapper { -webkit-text-size-adjust: 100%; }
+  .monitor-background { padding: 0.55rem !important; }
+  .monitor-background .card { border-radius: 14px; }
+  .profile-card { padding: 0.75rem !important; margin-bottom: 0.6rem !important; align-items: flex-start !important; }
+  .profile-card img,
+  .profile-photo-area > .rounded-circle { width: 52px !important; height: 52px !important; min-width: 52px; margin-right: 0.65rem !important; font-size: 1rem !important; }
+  .profile-photo-button { right: 5px; width: 23px; height: 23px; font-size: 0.72rem; }
+  .profile-card h4 { font-size: 1rem; margin-bottom: 0.3rem !important; }
+  .profile-card p { font-size: 0.78rem; line-height: 1.25; margin-bottom: 0.25rem; }
+  .profile-card .ms-auto { margin-left: 0.35rem !important; }
+  .profile-card .btn { padding: 0.35rem 0.5rem; border-radius: 8px; font-size: 0.72rem; }
+  .attendance-card { padding: 0.6rem !important; max-height: none !important; overflow: visible !important; }
+  .attendance-card h5 { font-size: 1rem; margin: 0 0 0.55rem !important; }
+  .attendance-table-layout { display: flex; align-items: stretch; width: 100%; max-width: 100%; overflow: hidden; border-radius: 10px; }
+  .attendance-table-scroll { flex: 1 1 auto; width: 0; min-width: 0; border-radius: 0; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scrollbar-width: auto; overscroll-behavior-x: none; }
+  .mobile-student-names { display: block; flex: 0 0 118px; width: 118px; position: relative; z-index: 5; background: #fff; box-shadow: 5px 0 8px -6px rgba(15, 23, 42, 0.8); }
+  .mobile-student-names__header { display: flex; align-items: center; height: 48px; padding: 0.35rem 0.5rem; background: #132b55; color: #fff; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; }
+  .mobile-student-names__item { display: flex; align-items: center; height: 78px; padding: 0.4rem 0.5rem; border-bottom: 1px solid #e2e8f0; background: #fff; color: #1f2937; font-size: 0.72rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .mobile-date-navigation { display: grid; grid-template-columns: 42px 1fr 42px; gap: 0.4rem; align-items: center; margin-bottom: 0.45rem; }
+  .mobile-date-navigation span { color: #64748b; font-size: 0.68rem; line-height: 1.15; text-align: center; }
+  .mobile-date-navigation button { width: 42px; height: 36px; border: 0; border-radius: 9px; background: #080a4c; color: #fff; font-size: 1.5rem; line-height: 1; touch-action: manipulation; }
+  .attendance-table-scroll .table { width: max-content; min-width: 100%; margin-bottom: 0; font-size: 0.72rem; border-radius: 0; overflow: visible; }
+  .header-cell { height: 48px; padding: 0.35rem !important; font-size: 0.62rem; letter-spacing: 0; }
+  .table tbody td { height: 78px; padding: 0.3rem 0.25rem; }
+  .student-name,
+  .modern-table-header .header-cell:first-child { display: none; }
+  .date-cell { min-width: 48px; width: 48px; }
+  .attendance-tap-target { width: 48px; height: 78px; min-width: 48px; min-height: 78px; margin: -0.3rem -0.25rem; touch-action: manipulation; }
+  .table input[type="checkbox"] { width: 24px; height: 24px; pointer-events: none; }
+  .status-pill { gap: 4px; padding: 0.35rem 0.5rem; font-size: 0.65rem; }
+  .status-dot { width: 6px; height: 6px; }
+  .attendance-card > .d-flex { margin-top: 0.55rem !important; }
+  .attendance-card > .d-flex .btn { width: 100%; padding: 0.5rem; font-size: 0.75rem; }
 }
 </style>

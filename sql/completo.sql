@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS periodos (
     INDEX idx_estado (estado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS filtros_cerrados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    periodo_id INT NOT NULL,
+    tipo ENUM('futbol', 'basquetbol') NOT NULL,
+    cerrado_por INT NULL,
+    cerrado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_filtro_periodo_tipo (periodo_id, tipo),
+    CONSTRAINT fk_filtro_periodo FOREIGN KEY (periodo_id) REFERENCES periodos(id) ON DELETE CASCADE,
+    CONSTRAINT fk_filtro_usuario FOREIGN KEY (cerrado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- =====================================================
 -- 3. TABLA CLUBS
 -- =====================================================
@@ -50,7 +61,20 @@ CREATE TABLE IF NOT EXISTS clubs (
     id_responsable INT NULL,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_tipo (tipo),
-    INDEX idx_nombre (nombre)
+    UNIQUE KEY uniq_clubs_nombre (nombre)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS fechas_club (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    periodo_id INT NOT NULL,
+    club_id INT NOT NULL,
+    fecha DATE NOT NULL,
+    creado_por INT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_fecha_club_periodo (periodo_id, club_id, fecha),
+    CONSTRAINT fk_fecha_club_periodo FOREIGN KEY (periodo_id) REFERENCES periodos(id) ON DELETE CASCADE,
+    CONSTRAINT fk_fecha_club_club FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_fecha_club_usuario FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- =====================================================
@@ -113,6 +137,9 @@ CREATE TABLE IF NOT EXISTS asistentes (
 CREATE TABLE IF NOT EXISTS fechas_asistencias (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_club INT NOT NULL,
+    opcion_1 VARCHAR(100) NULL,
+    opcion_2 VARCHAR(100) NULL,
+    opcion_3 VARCHAR(100) NULL,
     fecha DATE NOT NULL,
     INDEX idx_club (id_club),
     INDEX idx_fecha (fecha),
@@ -198,11 +225,12 @@ INSERT IGNORE INTO carreras (id, nombre, abreviatura) VALUES
 (4, 'Ingeniería en Gestión Empresarial', 'I.G.E.'),
 (5, 'Licenciatura en Administración', 'L.A.'),
 (6, 'Licenciatura en Arquitectura', 'ARQ.'),
-(7, 'Ingeniería en Mecatrónica', 'I.MEC.');
+(7, 'Ingeniería en Mecatrónica', 'I.MEC.'),
+(8, 'Licenciatura en Contabilidad', 'L.C.');
 
 -- Insertar semestres
 INSERT IGNORE INTO semestres (id, numero) VALUES
-(1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9), (10,10), (11,11), (12,12);
+(1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9), (10,10), (11,11);
 
 -- Insertar un periodo inicial
 INSERT IGNORE INTO periodos (id, nombre, fecha_inicio, fecha_fin, estado) VALUES

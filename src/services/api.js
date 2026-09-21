@@ -239,6 +239,12 @@ export const updateAlumno = (id, payload) =>
     body: JSON.stringify(payload)
   });
 
+export const getConfig = (clave) =>
+  request(`${CONFIG}?clave=${encodeURIComponent(clave)}`);
+
+export const deleteAlumno = (id) =>
+  request(`${ALUMNOS}/${id}`, { method: 'DELETE' });
+
 export const saveEvaluacion = (payload) =>
   request(SAVE_EVALUACION, {
     method: 'POST',
@@ -255,13 +261,17 @@ export const registrarAuditoria = () => Promise.resolve({ status: 'success' });
 
 export const getPeriodoActivo = () => request(`${BACKEND}/periodos?action=activo`);
 export const getPeriodos = () => request(`${BACKEND}/periodos`);
+export const getPeriodoDetalle = (id) => request(`${BACKEND}/periodos/${id}`);
 export const updatePeriodo = (id, payload) => request(`${BACKEND}/periodos/${id}`, {
   method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
 });
 export const cerrarPeriodo = () => request(`${BACKEND}/periodos?action=cerrar`, { method: 'POST' });
 
-export const getDocumentos = async () => {
-  const data = await request(`${BACKEND}/documentos`);
+export const getDocumentos = async (params = {}) => {
+  const query = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  ).toString();
+  const data = await request(`${BACKEND}/documentos${query ? `?${query}` : ''}`);
   return Array.isArray(data?.data) ? data.data : [];
 };
 export const uploadDocumento = (form) => request(`${BACKEND}/documentos`, { method: 'POST', body: form });

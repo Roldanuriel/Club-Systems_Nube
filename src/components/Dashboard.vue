@@ -167,14 +167,36 @@
             <div class="card-body">
               <div v-if="cargandoDetalle" class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando asistencias...</div>
               <div v-else-if="errorDetalle" class="alert alert-danger mb-0">{{ errorDetalle }}</div>
-              <div v-else class="table-responsive">
+              <div v-else>
+                <div class="d-flex justify-content-end mb-3">
+                  <button
+                    class="btn btn-sm btn-outline-primary"
+                    :disabled="!clubConCupoLleno"
+                    :title="clubConCupoLleno ? 'Ordenar la lista final por apellidos' : 'Se habilita cuando se complete el cupo del club'"
+                    @click="ordenAlfabetico = !ordenAlfabetico"
+                  >
+                    {{ ordenAlfabetico ? 'Ver orden de registro' : 'Ordenar nombres A-Z' }}
+                  </button>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold mb-1">Asignar fecha de asistencia a {{ clubSeleccionado.nombre }}</label>
+                  <div class="input-group">
+                    <input v-model="nuevaFechaClub" type="date" class="form-control" :min="fechaPeriodoInicio" :max="fechaPeriodoFin" />
+                    <button class="btn btn-success" :disabled="creandoFecha || !nuevaFechaClub" @click="asignarFechaClub">
+                      {{ creandoFecha ? 'Asignando…' : 'Asignar fecha' }}
+                    </button>
+                  </div>
+                  <small class="text-muted">El monitor verá únicamente las fechas asignadas aquí.</small>
+                </div>
+                <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                   <thead><tr><th>Alumno</th><th>Número de control</th><th v-for="fecha in detalleClub.fechas" :key="fecha" class="text-center">{{ fechaCorta(fecha) }}</th><th class="text-center">Faltas</th><th>Estado</th></tr></thead>
                   <tbody>
-                    <tr v-for="alumno in detalleClub.alumnos" :key="alumno.id"><td>{{ nombreAlumno(alumno) }}</td><td>{{ alumno.numeroControl }}</td><td v-for="fecha in detalleClub.fechas" :key="fecha" class="text-center"><span :class="asistio(alumno.id, fecha) ? 'text-success' : 'text-danger'">{{ asistio(alumno.id, fecha) ? '✓' : '✕' }}</span></td><td class="text-center fw-bold">{{ faltasAlumno(alumno.id) }}</td><td><span class="badge" :class="faltasAlumno(alumno.id) < 3 ? 'bg-success' : 'bg-danger'">{{ faltasAlumno(alumno.id) < 3 ? 'Acreditado' : 'No acreditado' }}</span></td></tr>
+                    <tr v-for="alumno in alumnosDetalleOrdenados" :key="alumno.id"><td>{{ nombreAlumno(alumno) }}</td><td>{{ alumno.numeroControl }}</td><td v-for="fecha in detalleClub.fechas" :key="fecha" class="text-center"><span :class="asistio(alumno.id, fecha) ? 'text-success' : 'text-danger'">{{ asistio(alumno.id, fecha) ? '✓' : '✕' }}</span></td><td class="text-center fw-bold">{{ faltasAlumno(alumno.id) }}</td><td><span class="badge" :class="faltasAlumno(alumno.id) < 3 ? 'bg-success' : 'bg-danger'">{{ faltasAlumno(alumno.id) < 3 ? 'Acreditado' : 'No acreditado' }}</span></td></tr>
                     <tr v-if="!detalleClub.alumnos.length"><td :colspan="detalleClub.fechas.length + 4" class="text-center text-muted py-4">No hay alumnos inscritos en este club.</td></tr>
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           </div>
@@ -230,7 +252,7 @@
 
 <script>
 import ClubsR from './ClubsR.vue';
-import { getAsistenciasPorClub } from '../services/api';
+import { getAsistenciasPorClub, crearFechaAsistencias } from '../services/api';
 
 export default {
   name: "Dashboard",
@@ -238,7 +260,7 @@ export default {
   props: ["clubs", "usuarios", "alumnos", "periodoActivo", "usuarioActual"],
   emits: ["navigate", "add-club", "edit-club", "delete-club", "refresh", "log", "show-error"],
   data() {
-    return { clubSeleccionado: null, detalleClub: { fechas: [], alumnos: [], asistencias: {} }, cargandoDetalle: false, errorDetalle: '' };
+    return { clubSeleccionado: null, detalleClub: { fechas: [], alumnos: [], asistencias: {} }, cargandoDetalle: false, errorDetalle: '', ordenAlfabetico: false, nuevaFechaClub: '', creandoFecha: false };
   },
   computed: {
     rolActual() { return this.usuarioActual?.rol || this.usuarioActual?.tipo || 'ADMIN'; },
@@ -266,7 +288,10 @@ export default {
     },
     totalMonitores() {
       if (!this.usuarios || !Array.isArray(this.usuarios)) return 0;
-      return this.usuarios.filter(u => u.tipo === "MONITOR").length;
+      return this.usuarios.filter((usuario) => {
+        const tipo = usuario?.tipo || usuario?.rol || '';
+        return String(tipo).trim().toUpperCase() === 'MONITOR';
+      }).length;
     },
     periodoData() {
       return this.periodoActivo || null;
@@ -282,6 +307,8 @@ export default {
       const fin = this.formatearFecha(this.periodoData.fecha_fin);
       return `${inicio} — ${fin}`;
     },
+    fechaPeriodoInicio() { return String(this.periodoData?.fecha_inicio || '').slice(0, 10); },
+    fechaPeriodoFin() { return String(this.periodoData?.fecha_fin || '').slice(0, 10); },
     clubsOrdenados() {
       if (!this.clubs) return [];
       const tipoOrden = { "DEPORTIVO": 1, "CULTURAL": 2 };
@@ -294,9 +321,35 @@ export default {
       if (!this.clubSeleccionado) return this.clubsOrdenados;
       const seleccionado = this.clubsOrdenados.find(club => club.id === this.clubSeleccionado.id);
       return seleccionado ? [seleccionado] : [];
+    },
+    clubConCupoLleno() {
+      if (!this.clubSeleccionado) return false;
+      const limite = Number(this.clubSeleccionado.cupo || this.clubSeleccionado.cupo_limite || 0);
+      const ocupados = Math.max(Number(this.clubSeleccionado.ocupados || 0), this.detalleClub.alumnos?.length || 0);
+      return limite > 0 && ocupados >= limite;
+    },
+    alumnosDetalleOrdenados() {
+      const lista = [...(this.detalleClub.alumnos || [])];
+      if (!this.ordenAlfabetico) return lista;
+      return lista.sort((a, b) => `${a.apellidoP || ''} ${a.apellidoM || ''} ${a.nombre || ''}`.localeCompare(`${b.apellidoP || ''} ${b.apellidoM || ''} ${b.nombre || ''}`, 'es', { sensitivity: 'base' }));
     }
   },
   methods: {
+    async asignarFechaClub() {
+      if (!this.clubSeleccionado || !this.nuevaFechaClub) return;
+      this.creandoFecha = true;
+      this.errorDetalle = '';
+      try {
+        const registros = (this.detalleClub.alumnos || []).map(alumno => ({ alumno_id: alumno.id, presente: false }));
+        await crearFechaAsistencias({ club_id: this.clubSeleccionado.id, fecha: this.nuevaFechaClub, registros });
+        this.detalleClub = await getAsistenciasPorClub(this.clubSeleccionado.id);
+        this.nuevaFechaClub = '';
+      } catch (error) {
+        this.errorDetalle = error.message || 'No se pudo asignar la fecha al club';
+      } finally {
+        this.creandoFecha = false;
+      }
+    },
     abrirNuevoClub() {
       if (!this.isSuperAdmin) return;
       this.$nextTick(() => this.$refs.gestorClubs?.openModal());
@@ -322,11 +375,12 @@ export default {
         this.cerrarClub();
         return;
       }
-      this.clubSeleccionado = club; this.cargandoDetalle = true; this.errorDetalle = '';
+      this.clubSeleccionado = club; this.ordenAlfabetico = false; this.cargandoDetalle = true; this.errorDetalle = '';
       try { this.detalleClub = await getAsistenciasPorClub(club.id); } catch (error) { this.errorDetalle = error.message || 'No se pudieron cargar las asistencias'; } finally { this.cargandoDetalle = false; }
     },
     cerrarClub() {
       this.clubSeleccionado = null;
+      this.ordenAlfabetico = false;
       this.errorDetalle = '';
     },
     nombreAlumno(alumno) { return `${alumno.nombre || ''} ${alumno.apellidoP || ''} ${alumno.apellidoM || ''}`.replace(/\s+/g, ' ').trim(); },

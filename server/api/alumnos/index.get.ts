@@ -11,7 +11,8 @@ export default defineEventHandler(async (event) => {
   if (clubId > 0) { filter = ' AND a.id_club = ?'; params.push(clubId) }
   const [rows] = await db().execute<RowDataPacket[]>(
     `SELECT a.id, a.nombre, a.apellidoP, a.apellidoM, a.numeroControl, a.telefono,
-            a.carrera_id, a.semestre_id, a.id_club, a.periodo_id, a.estado_periodo, a.fecha_registro
+            a.carrera_id, a.semestre_id, a.id_club, a.periodo_id, a.estado_periodo, a.fecha_registro,
+            a.opcion_1, a.opcion_2, a.opcion_3
        FROM alumnos a JOIN periodos p ON p.id = a.periodo_id
       WHERE p.estado = 'ACTIVO'${filter}
       ORDER BY a.apellidoP, a.apellidoM, a.nombre`, params)

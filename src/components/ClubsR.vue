@@ -153,6 +153,9 @@ export default {
     };
   },
   computed: {
+    alumnosVersion() {
+      return (this.alumnos || []).map(alumno => `${alumno.id}:${alumno.clubId ?? alumno.club_id ?? ''}`).join('|');
+    },
     // Mapea campos que vienen de la BD a un formato uniforme y calcula ocupados.
     clubsConOcupados() {
       const rawClubs = Array.isArray(this.clubs) ? this.clubs : [];
@@ -214,6 +217,13 @@ export default {
       });
     }
   },
+  watch: {
+    // Si se asigna un alumno mientras está abierto el detalle, refrescar la lista
+    // del club para que aparezca inmediatamente.
+    alumnosVersion() {
+      if (this.clubSeleccionado && !this.cargandoDetalle) this.verAsistencias(this.clubSeleccionado);
+    }
+  },
   methods: {
     async verAsistencias(club) {
       this.clubSeleccionado = club;
@@ -245,6 +255,13 @@ export default {
         .map((p) => p ? (p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()) : '')
         .join(' ');
     },
+    sugerirNombreClub(valor) {
+      return String(valor || '')
+        .replace(/([aeiouáéíóúü])\1+/giu, '$1')
+        .replace(/(\p{L})\1{2,}/giu, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+    },
     soloTextoClub() {
       this.localClub.nombre = this.normalizarTexto(this.localClub.nombre);
     },
@@ -271,6 +288,7 @@ export default {
 
       if (!nombre) return 'El nombre del club es obligatorio.';
       if (nombre.length > 100) return 'El nombre debe tener máximo 100 caracteres.';
+      if (/(\p{L})\1\1|([aeiouáéíóúü])\2/iu.test(nombre)) return `“${nombre}” parece estar escrito incorrectamente. ¿Quiso escribir “${this.sugerirNombreClub(nombre)}”?`;
       if (!/^[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]*$/.test(nombre)) {
         return 'El nombre solo permite letras y espacios, y debe iniciar con mayúscula.';
       }

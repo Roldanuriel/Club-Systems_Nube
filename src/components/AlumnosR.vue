@@ -6,7 +6,14 @@
       <button class="btn btn-primary" @click="openAddModal">Agregar alumno</button>
     </div>
 
-    <table class="table">
+    <div class="student-search">
+      <input v-model="textoBusqueda" type="search" placeholder="Nombre o número de control" @keyup.enter="buscarAlumno" />
+      <button class="btn btn-primary" @click="buscarAlumno">Buscar</button>
+      <button v-if="busquedaAplicada" class="btn btn-light" @click="limpiarBusqueda">Mostrar todos</button>
+    </div>
+
+    <div class="registered-table-scroll">
+    <table class="table registered-table">
       <thead>
         <tr>
           <th>Nombre completo</th>
@@ -15,26 +22,32 @@
           <th class="col-control">Número de control</th>
           <th class="col-tel">Teléfono</th>
           <th class="col-club">Club</th>
+          <th class="col-opciones">Opciones elegidas</th>
           <th class="col-acciones">Acciones</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(alumno, index) in alumnos" :key="alumno.id || alumno.control || index">
+        <tr v-for="(alumno, index) in alumnosFiltrados" :key="alumno.id || alumno.control || index">
           <td>{{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}</td>
           <td class="col-carrera" :title="alumno.carrera">{{ displayCarrera(alumno.carrera) }}</td>
           <td class="col-sem">{{ alumno.semestre }}</td>
           <td class="col-control">{{ alumno.control }}</td>
           <td class="col-tel">{{ alumno.telefono }}</td>
           <td class="col-club">{{ alumno.club }}</td>
+          <td class="col-opciones">
+            <span v-if="!(alumno.opciones || []).length">—</span>
+            <ol v-else class="chosen-options"><li v-for="opcion in alumno.opciones" :key="opcion">{{ opcion }}</li></ol>
+          </td>
           <td class="col-acciones">
             <div class="actions">
-              <button class="btn btn-warning btn-sm" @click="startEdit(index)">Modificar</button>
-              <button class="btn btn-danger btn-sm" @click="confirmDelete(index)">Eliminar</button>
+              <button class="btn btn-warning btn-sm" @click="startEdit(indiceOriginal(alumno))">Modificar</button>
+              <button v-if="canManage" class="btn btn-danger btn-sm" @click="confirmDelete(indiceOriginal(alumno))">Eliminar</button>
             </div>
           </td>
         </tr>
       </tbody>
     </table>
+    </div>
 
     <!-- Modal agregar (sin Bootstrap) -->
     <div v-if="showAddModal" class="modal-backdrop" @click.self="showAddModal = false">
@@ -115,7 +128,7 @@
     </div>
 
     <!-- Confirmación eliminar (sin Bootstrap) -->
-    <div v-if="showDeleteModal" class="modal-backdrop" @click.self="showDeleteModal = false">
+    <div v-if="canManage && showDeleteModal" class="modal-backdrop" @click.self="showDeleteModal = false">
       <div class="modal-card">
         <div class="modal-header">
           <h5>Confirmar eliminación</h5>
@@ -138,11 +151,16 @@
 </template>
 
 <script>
-import { createAlumno, updateAlumno } from '../services/api';
+import { createAlumno, updateAlumno, deleteAlumno } from '../services/api';
 
 export default {
   name: 'AlumnosR',
-  props: ['alumnos', 'clubs', 'carreras'],
+  props: {
+    alumnos: { type: Array, default: () => [] },
+    clubs: { type: Array, default: () => [] },
+    carreras: { type: Array, default: () => [] },
+    canManage: { type: Boolean, default: false }
+  },
   data() {
     return {
       form: { nombre: '', apellidoP: '', apellidoM: '', carrera: '', semestre: '', control: '', telefono: '', club: '', clubId: '' },
@@ -155,6 +173,8 @@ export default {
       loading: false,
       toastMsg: '',
       errorMsg: '',
+      textoBusqueda: '',
+      busquedaAplicada: '',
       carreraAlias: {
         'Ingeniería Civil': 'ICIV',
         'Ingeniería Industrial': 'IIND',
@@ -166,7 +186,18 @@ export default {
       },
     };
   },
+  computed: {
+    alumnosFiltrados() {
+      const termino = this.normalizarBusqueda(this.busquedaAplicada);
+      if (!termino) return this.alumnos;
+      return this.alumnos.filter(alumno => this.normalizarBusqueda(`${alumno.nombre || ''} ${alumno.apellidoP || ''} ${alumno.apellidoM || ''} ${alumno.control || alumno.numeroControl || ''}`).includes(termino));
+    }
+  },
   methods: {
+    normalizarBusqueda(valor) { return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim(); },
+    buscarAlumno() { this.busquedaAplicada = this.textoBusqueda.trim(); },
+    limpiarBusqueda() { this.textoBusqueda = ''; this.busquedaAplicada = ''; },
+    indiceOriginal(alumno) { return this.alumnos.indexOf(alumno); },
     normalizarTexto(valor) {
       const limpio = (valor || '')
         .replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, '')
@@ -295,12 +326,25 @@ export default {
     },
 
     confirmDelete(index) {
+      if (!this.canManage) return;
       this.pendingDeleteIndex = index;
       this.showDeleteModal = true;
     },
-    deleteConfirmed() {
-      this.$emit('delete-alumno', this.pendingDeleteIndex, 'Usuario Oficina');
-      this.showDeleteModal = false;
+    async deleteConfirmed() {
+      if (!this.canManage || this.loading) return;
+      const alumno = this.alumnos[this.pendingDeleteIndex];
+      if (!alumno?.id) return this.showError('Alumno sin identificador para eliminar');
+      try {
+        this.loading = true;
+        await deleteAlumno(alumno.id);
+        this.showDeleteModal = false;
+        this.$emit('request-reload-alumnos');
+        this.showToast('Alumno eliminado correctamente');
+      } catch (error) {
+        this.showError(error.message || 'No se pudo eliminar el alumno');
+      } finally {
+        this.loading = false;
+      }
     }
   }
 };
@@ -315,6 +359,11 @@ export default {
 }
 .table th, .table td { border: 1px solid #ddd; padding: 8px; }
 .table thead th { background: #e3f2fd; text-align: left; }
+.registered-table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.registered-table th { vertical-align: bottom; overflow-wrap: normal; word-break: normal; }
+.student-search { display: flex; gap: 8px; margin: 0 0 16px; }
+.student-search input { flex: 1; min-width: 180px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 7px; outline: none; }
+.student-search input:focus { border-color: #4c38ff; box-shadow: 0 0 0 3px rgba(76,56,255,.12); }
 
 .btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #999; background: #f5f5f5; cursor: pointer; }
 .btn-primary { background: #1976d2; color: #fff; border-color: #1976d2; }
@@ -351,10 +400,12 @@ export default {
   text-align: center;
 }
 .col-carrera { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.col-sem { width: 80px; text-align: center; }
+.col-sem { width: 105px; text-align: center; }
 .col-control { width: 130px; }
 .col-tel { width: 140px; }
 .col-club { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-opciones { min-width: 220px; }
+.chosen-options { margin: 0; padding-left: 20px; font-size: .82rem; }
 .col-acciones { width: 210px; }
 
 @media (max-width: 1200px) {
@@ -372,6 +423,9 @@ export default {
   .modal-card { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); overflow-y: auto; }
 }
 @media (max-width: 576px) {
+  .student-search { flex-wrap: wrap; }
+  .student-search input { flex-basis: 100%; }
+  .registered-table { min-width: 900px; }
   .grid { grid-template-columns: 1fr; }
   .modal-footer { flex-wrap: wrap; gap: 8px; }
   .modal-footer .btn { flex: 1 1 120px; }

@@ -36,9 +36,12 @@
           </div>
           <span class="app-name" v-if="!sidebarCollapsed">Club Systems</span>
           <button 
+            type="button"
             class="collapse-btn" 
             @click="sidebarCollapsed = !sidebarCollapsed"
             v-if="!isMobile"
+            :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'"
+            :title="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -119,8 +122,8 @@
             </a>
           </div>
 
-          <div class="menu-section">
-            <span class="menu-section-title" v-if="!sidebarCollapsed" @click="toggleMenuSectionFromLabel">Alumnos <span class="section-chevron">⌄</span></span>
+           <div class="menu-section">
+             <span class="menu-section-title" v-if="!sidebarCollapsed" @click="toggleMenuSectionFromLabel">Alumnos <span class="section-chevron">⌄</span></span>
             
             <a 
               class="nav-item" 
@@ -224,7 +227,7 @@
                   <path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>
                 </svg>
               </span>
-              <span class="nav-label" v-if="!sidebarCollapsed">Registros y material</span>
+              <span class="nav-label" v-if="!sidebarCollapsed">Registros</span>
               <span class="nav-active-indicator" v-if="currentView === 'Registros' && !sidebarCollapsed"></span>
             </a>
           </div>
@@ -270,8 +273,8 @@
             </a>
           </div>
 
-          <div class="menu-section">
-            <span class="menu-section-title" v-if="!sidebarCollapsed" @click="toggleMenuSectionFromLabel">Sistema <span class="section-chevron">⌄</span></span>
+           <div v-if="isSuperAdmin" class="menu-section">
+             <span class="menu-section-title" v-if="!sidebarCollapsed" @click="toggleMenuSectionFromLabel">Sistema <span class="section-chevron">⌄</span></span>
             
             <a 
               class="nav-item" 
@@ -428,7 +431,7 @@ import Evaluaciones from "../components/Evaluaciones.vue";
 import Periodos from "../components/Periodos.vue";
 import Reinscripciones from "../components/Reinscripciones.vue";
 import Registros from "../components/Registros.vue";
-import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs } from "../services/api";
+import { getClubs, getAlumnos, getUsuarios, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs, getPeriodoActivo } from "../services/api";
 import axios from "axios";
 import jsPDF from "jspdf";
 import api from "../services/http";
@@ -500,21 +503,7 @@ export default {
         },
       ],
 
-      // usuarios para Gestion (ejemplo)
-      usuarios: [
-        {
-          id: 1,
-          nombre: "admin",
-          tipo: "oficina",
-          correo: "admin@ejemplo.com",
-        },
-        {
-          id: 2,
-          nombre: "monitor1",
-          tipo: "monitor",
-          correo: "mon1@ejemplo.com",
-        },
-      ],
+      usuarios: [],
 
       fechas: ["01/11", "08/11", "15/11"],
 
@@ -615,6 +604,10 @@ export default {
         this.showError('Solo el superadministrador puede gestionar usuarios');
         return;
       }
+      if (view === 'Auditoria' && !this.isSuperAdmin) {
+        this.showError('Solo el superadministrador puede consultar la auditoría');
+        return;
+      }
       this.currentView = view;
       if (this.isMobile) this.sidebarOpen = false;
       this.$nextTick(() => this.openMenuSectionForActive());
@@ -690,6 +683,20 @@ export default {
       }
     },
 
+    async loadUsuarios() {
+      if (!this.isSuperAdmin) {
+        this.usuarios = [];
+        return;
+      }
+
+      try {
+        this.usuarios = await getUsuarios();
+      } catch (e) {
+        this.usuarios = [];
+        this.showError(e.message || "No se pudieron cargar los usuarios");
+      }
+    },
+
     // Refresco manual de clubs sin disparar la cadena completa de mounted()
     async refreshClubs() {
       await this.loadClubs();
@@ -697,9 +704,9 @@ export default {
 
     async cargarPeriodoActivo() {
       try {
-        const res = await axios.get(`${BACKEND}/periodos?action=activo`);
-        if (res.data.status === 'success' && res.data.data) {
-          this.periodoActivo = res.data.data;
+        const res = await getPeriodoActivo();
+        if (res.status === 'success' && res.data) {
+          this.periodoActivo = res.data;
         }
       } catch (error) {
         // Silencioso en producción
@@ -730,6 +737,7 @@ export default {
             clubId: r.id_club != null ? Number(r.id_club) : null,
             club_id: r.id_club != null ? Number(r.id_club) : null,
             club: clubObj ? clubObj.nombre : '',
+            opciones: [r.opcion_1, r.opcion_2, r.opcion_3].filter(Boolean),
             faltas: 0,
             asistencias: {},
           };
@@ -839,7 +847,7 @@ export default {
         const current = this.clubs[index];
         if (!current || !current.id) throw new Error("Club sin id");
         await deleteClub(current.id);
-        this.clubs.splice(index, 1);
+        await Promise.all([this.loadClubs(), this.loadAlumnos()]);
         this.logAction(actor, "Eliminar", "club", `Se eliminó el club "${current.nombre}"`);
         this.showToast("Club eliminado");
       } catch (e) {
@@ -1213,7 +1221,7 @@ export default {
   }
   
    await this.cargarUsuarioActual();
-   await this.loadClubs();
+   await Promise.all([this.loadClubs(), this.loadUsuarios()]);
    await this.loadAlumnos();
    await this.cargarPeriodoActivo();
    await this.loadAuditoria();
@@ -1223,6 +1231,7 @@ export default {
     try {
       await Promise.all([
         this.loadClubs(),
+        this.loadUsuarios(),
         this.loadAlumnos(),
         this.cargarPeriodoActivo()
       ]);
@@ -1380,7 +1389,7 @@ export default {
 .app-logo-section {
   display: flex;
   align-items: center;
-  padding: 12px 12px;
+  padding: 12px 54px 12px 12px;
   margin-bottom: 24px;
   position: relative;
 }
@@ -1388,6 +1397,8 @@ export default {
 .app-icon {
   width: 44px;
   height: 44px;
+  min-width: 44px;
+  flex: 0 0 44px;
   border-radius: 14px;
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%);
   display: flex;
@@ -1424,21 +1435,28 @@ export default {
 }
 
 .app-name {
+  flex: 1 1 auto;
+  min-width: 0;
   margin-left: 12px;
   font-size: 1.1rem;
   font-weight: 700;
   color: white;
   letter-spacing: 0.3px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .collapse-btn {
-  margin-left: auto;
+  position: absolute;
+  top: 20px;
+  right: 8px;
+  z-index: 5;
   background: rgba(255, 255, 255, 0.06);
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1450,20 +1468,22 @@ export default {
 .collapse-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: white;
-  transform: rotate(180deg);
+}
+
+.collapse-btn:focus,
+.collapse-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.38);
 }
 
 .collapse-btn svg {
   width: 18px;
   height: 18px;
+  transition: transform 0.25s ease;
 }
 
-.sidebar-collapsed .collapse-btn {
+.sidebar-collapsed .collapse-btn svg {
   transform: rotate(180deg);
-}
-
-.sidebar-collapsed .collapse-btn:hover {
-  transform: rotate(0deg);
 }
 
 /* Profile Section */
@@ -1778,6 +1798,13 @@ export default {
 
 .sidebar-collapsed .app-logo-section {
   justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 8px;
+}
+
+.sidebar-collapsed .collapse-btn {
+  position: static;
 }
 
 /* Logout Section */
@@ -1863,8 +1890,10 @@ export default {
 /* Laptop */
 @media (min-width: 901px) and (max-width: 1366px) {
   .sidebar { width: 240px; }
+  .sidebar.sidebar-collapsed { width: 80px; }
   .sidebar-inner { padding: 14px 10px; }
   .content { margin-left: 240px; padding: 20px !important; }
+  .sidebar.sidebar-collapsed + .content { margin-left: 80px; }
   .profile-section { padding: 12px 10px; }
   .app-logo-section { margin-bottom: 14px; }
   .nav-item { padding: 10px 12px; }

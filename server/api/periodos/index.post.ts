@@ -13,6 +13,11 @@ export default defineEventHandler(async (event) => {
       const [periods] = await connection.query<RowDataPacket[]>("SELECT * FROM periodos WHERE estado = 'ACTIVO' ORDER BY id DESC LIMIT 1 FOR UPDATE")
       const current = periods[0]
       if (!current) throw createError({ statusCode: 409, statusMessage: 'No hay periodo activo para cerrar' })
+      const [clubs] = await connection.query<RowDataPacket[]>('SELECT id, nombre, tipo, descripcion, cupo_limite FROM clubs ORDER BY nombre')
+      await connection.execute(
+        `INSERT INTO historial_configuracion (periodo_id, clave, valor) VALUES (?, 'clubs_snapshot', ?)
+         ON DUPLICATE KEY UPDATE valor = VALUES(valor)`, [current.id, JSON.stringify(clubs)]
+      )
       await connection.execute(
         `UPDATE alumnos a
             SET a.estado_periodo = CASE
