@@ -1,9 +1,0 @@
-runtime: php81
-
-handlers:
-- url: /.*
-  script: auto
-  secure: always
-
-env_variables:
-  # Variables de entorno si es necesario

@@ -5,33 +5,34 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",
-    "db:start": "powershell -ExecutionPolicy Bypass -File scripts/start-postgres.ps1",
-    "dev:postgres": "powershell -ExecutionPolicy Bypass -File scripts/start-project.ps1",
-    "pilot:install": "powershell -ExecutionPolicy Bypass -File scripts/install-pilot.ps1",
-    "pilot:start": "powershell -ExecutionPolicy Bypass -File scripts/start-pilot.ps1",
-    "db:backup": "powershell -ExecutionPolicy Bypass -File scripts/backup-database.ps1",
+    "db:start": "powershell -ExecutionPolicy Bypass -File herramientas/iniciar-postgres.ps1",
+    "dev:postgres": "powershell -ExecutionPolicy Bypass -File herramientas/iniciar-proyecto.ps1",
+    "pilot:install": "powershell -ExecutionPolicy Bypass -File herramientas/instalar-piloto.ps1",
+    "pilot:start": "powershell -ExecutionPolicy Bypass -File herramientas/iniciar-piloto.ps1",
+    "db:backup": "powershell -ExecutionPolicy Bypass -File herramientas/respaldar-base.ps1",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "node --test pruebas/*.test.mjs"
   },
   "dependencies": {
-    "@types/pg": "^8.23.1",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
-    "html2pdf.js": "^0.14.0",
     "jspdf": "^3.0.4",
     "jszip": "^3.10.1",
-    "mysql2": "^3.15.3",
     "nuxt": "^4.0.0",
     "pg": "^8.23.0",
     "vue": "^3.5.22",
+    "vue-router": "5.3.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/bootstrap": "^5.2.10",
+    "@types/pg": "^8.23.1",
+    "mysql2": "^3.15.3",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.1.4"
   },

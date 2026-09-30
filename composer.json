@@ -1,8 +1,0 @@
-{
-  "name": "club-systems/backend",
-  "description": "Backend PHP para Club Systems",
-  "type": "project",
-  "require": {
-    "php": "^8.1"
-  }
-}

@@ -1,3 +1,6 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-pilot.ps1"
-if errorlevel 1 pause
+setlocal
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0herramientas\iniciar-piloto.ps1"
+set "result=%errorlevel%"
+if not "%result%"=="0" pause
+exit /b %result%

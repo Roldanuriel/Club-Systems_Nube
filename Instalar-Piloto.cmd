@@ -1,3 +1,6 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install-pilot.ps1"
+setlocal
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0herramientas\instalar-piloto.ps1"
+set "result=%errorlevel%"
 pause
+exit /b %result%

@@ -1,3 +1,6 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\restore-database.ps1" %*
+setlocal
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0herramientas\restaurar-base.ps1" %*
+set "result=%errorlevel%"
 pause
+exit /b %result%
