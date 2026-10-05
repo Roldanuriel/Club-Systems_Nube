@@ -21,7 +21,7 @@
   height: 48px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #1e3a5f 0%, #080A4C 100%);
+  background: linear-gradient(135deg, #1e3a5f 0%, var(--brand) 100%);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -86,7 +86,7 @@
   bottom: 0;
   left: 0;
   z-index: 900;
-  background: linear-gradient(180deg, #080A4C 0%, #0d1b4d 30%, #0a1628 70%, #050630 100%);
+  background: var(--degradado-navegacion);
   display: flex;
   flex-direction: column;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -96,11 +96,11 @@
 }
 
 .sidebar.sidebar-admin {
-  background: linear-gradient(180deg, #4c38ff 0%, #4c38ff 45%, #402edb 100%);
+  background: var(--degradado-navegacion);
 }
 
 .sidebar.sidebar-superadmin {
-  background: linear-gradient(180deg, #080A4C 0%, #0d1b4d 30%, #0a1628 70%, #050630 100%);
+  background: var(--degradado-navegacion);
 }
 
 .sidebar::before {
@@ -154,7 +154,7 @@
   min-width: 44px;
   flex: 0 0 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%);
+  background: linear-gradient(135deg, #3981ee 0%, #245cdb 50%, #204ab7 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,7 +265,7 @@
   right: -4px;
   bottom: -4px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #4f46e5, #8b5cf6);
+  background: linear-gradient(135deg, #3981ee, #245cdb, #3489ef);
   opacity: 0.6;
   filter: blur(8px);
   animation: avatarPulse 3s ease-in-out infinite;
@@ -287,7 +287,7 @@
 }
 
 .fallback-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #4889ed 0%, #245cdb 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -308,7 +308,7 @@
   height: 14px;
   border-radius: 50%;
   background: #10b981;
-  border: 2px solid #0a1628;
+  border: 2px solid #203c83;
   z-index: 2;
 }
 
@@ -526,7 +526,7 @@
   width: 3px;
   height: 20px;
   border-radius: 3px;
-  background: linear-gradient(180deg, #6366f1, #8b5cf6);
+  background: linear-gradient(180deg, #3981ee, #3489ef);
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
 }
 
@@ -727,3 +727,6 @@
   opacity: 0;
   transform: translateY(10px);
 }
+
+/* La identidad visual es la misma para administración y superadministración. */
+.app-container,.main-content {background:var(--fondo-institucional);}

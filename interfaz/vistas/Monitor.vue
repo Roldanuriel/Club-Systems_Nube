@@ -13,6 +13,6 @@ import MonitorPanel from "../componentes/Monitor.vue";
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: #080A4C;
+  background-color: var(--brand);
 }
 </style>

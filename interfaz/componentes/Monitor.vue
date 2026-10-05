@@ -16,7 +16,7 @@
           @error="handleUserImageError"
         />
       </template>
-      <div v-else class="rounded-circle me-3 d-flex align-items-center justify-content-center text-white fw-bold" style="width: 80px; height: 80px; background: linear-gradient(135deg, #080A4C 0%, #0066CC 100%); border: 3px solid rgba(255,255,255,0.5); font-size: 1.75rem;" @click="$refs.profilePhotoInput.click()">
+      <div v-else class="rounded-circle me-3 d-flex align-items-center justify-content-center text-white fw-bold" style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--brand) 0%, #0066CC 100%); border: 3px solid rgba(255,255,255,0.5); font-size: 1.75rem;" @click="$refs.profilePhotoInput.click()">
         {{ getInitials(usuarioActual.nombre, usuarioActual.apellidoP) }}
       </div>
       <button type="button" class="profile-photo-button" :disabled="subiendoFoto" @click="$refs.profilePhotoInput.click()" aria-label="Cambiar foto de perfil">
@@ -136,7 +136,7 @@
     <div v-if="showEvalModal" class="modal d-block" tabindex="-1">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
-          <div class="modal-header text-white" style="background-color: #080A4C;">
+          <div class="modal-header text-white" style="background-color: var(--brand);">
             <h5 class="modal-title">Evaluación de Desempeño</h5>
             <button type="button" class="btn-close btn-close-white" @click="closeEvalModal"></button>
           </div>

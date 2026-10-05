@@ -46,7 +46,7 @@
     <p v-else-if="!modalOnly" class="text-muted">No hay clubs registrados.</p>
 
     <div v-if="!modalOnly && clubSeleccionado" class="card border-0 shadow-sm mt-4">
-      <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:#4c38ff">
+      <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:var(--brand)">
         <strong>{{ clubSeleccionado.nombre }} — Lista y asistencias</strong>
         <button class="btn btn-sm btn-light" @click="clubSeleccionado = null">Cerrar</button>
       </div>

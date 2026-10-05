@@ -163,7 +163,7 @@
     </div>
 
     <div v-if="historialSeleccionado" class="card border-0 shadow-sm mt-4 historial-periodo">
-      <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:#080A4C">
+      <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:var(--brand)">
         <div><strong>{{ historialSeleccionado.periodo.nombre }}</strong><span class="ms-2 opacity-75">Clubes y resultados del ciclo</span></div>
         <button class="btn btn-sm btn-light" @click="cerrarHistorial">Cerrar</button>
       </div>
@@ -494,7 +494,7 @@ export default {
   opacity: 0.7;
 }
 .history-club-card { width: 100%; min-height: 130px; padding: 16px; text-align: left; border: 2px solid #e2e8f0; border-radius: 12px; background: #fff; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; transition: .2s ease; }
-.history-club-card:hover, .history-club-card.active { border-color: #4c38ff; box-shadow: 0 7px 20px rgba(76,56,255,.14); }
+.history-club-card:hover, .history-club-card.active { border-color: var(--brand); box-shadow: 0 7px 20px rgba(76,56,255,.14); }
 .history-club-name { width: 100%; font-weight: 700; font-size: 1.05rem; color: #1e293b; }
 .history-club-count { width: 100%; color: #64748b; font-size: .85rem; }
 .historial-periodo { scroll-margin-top: 1rem; }

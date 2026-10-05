@@ -426,7 +426,7 @@ export default {
 .registered-table th { vertical-align: bottom; overflow-wrap: normal; word-break: normal; }
 .student-search { display: flex; gap: 8px; margin: 0 0 16px; }
 .student-search input { flex: 1; min-width: 180px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 7px; outline: none; }
-.student-search input:focus { border-color: #4c38ff; box-shadow: 0 0 0 3px rgba(76,56,255,.12); }
+.student-search input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(76,56,255,.12); }
 
 .btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #999; background: #f5f5f5; cursor: pointer; }
 .btn-primary { background: #1976d2; color: #fff; border-color: #1976d2; }

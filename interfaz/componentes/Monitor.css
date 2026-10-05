@@ -5,7 +5,7 @@
 }
 
 .monitor-wrapper {
-  background-color: #080A4C;
+  background-color: var(--brand);
   min-height: 100vh;
   margin: 0;
   padding: 0;
@@ -13,7 +13,7 @@
 }
 
 .monitor-background {
-  background: linear-gradient(135deg, #080A4C 0%, #1a237e 30%, #0d1b4d 70%, #050630 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, #2358c6 30%, #214daf 70%, var(--brand-dark) 100%);
   color: #eef1ff;
   min-height: 100vh;
   width: 100%;
@@ -60,7 +60,7 @@
 }
 
 .modern-table-header {
-  background: linear-gradient(135deg, #1e3a5f 0%, #080A4C 50%, #0d1b4d 100%) !important;
+  background: linear-gradient(135deg, #1e3a5f 0%, var(--brand) 50%, #214daf 100%) !important;
   border: none;
   position: relative;
   overflow: hidden;
@@ -217,7 +217,7 @@
 }
 
 .btn-outline-primary:hover {
-  background: linear-gradient(135deg, #1e3a5f 0%, #080A4C 100%);
+  background: linear-gradient(135deg, #1e3a5f 0%, var(--brand) 100%);
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(30, 58, 95, 0.3);
@@ -298,7 +298,7 @@
   padding: 0;
   border: 2px solid #fff;
   border-radius: 50%;
-  background: #4c38ff;
+  background: var(--brand);
   color: #fff;
   font-weight: 700;
   line-height: 1;
@@ -365,7 +365,7 @@
 }
 
 .modal-header {
-  background: linear-gradient(135deg, #1e3a5f 0%, #080A4C 100%) !important;
+  background: linear-gradient(135deg, #1e3a5f 0%, var(--brand) 100%) !important;
   border-radius: 20px 20px 0 0 !important;
   border: none;
   padding: 20px 24px;
@@ -388,7 +388,7 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #1e3a5f 0%, #080A4C 100%);
+  background: linear-gradient(135deg, #1e3a5f 0%, var(--brand) 100%);
   border: none;
   border-radius: 12px;
   font-weight: 600;
@@ -437,7 +437,7 @@
   .mobile-student-names__item { display: flex; align-items: center; height: 78px; padding: 0.4rem 0.5rem; border-bottom: 1px solid #e2e8f0; background: #fff; color: #1f2937; font-size: 0.72rem; line-height: 1.2; overflow-wrap: anywhere; }
   .mobile-date-navigation { display: grid; grid-template-columns: 42px 1fr 42px; gap: 0.4rem; align-items: center; margin-bottom: 0.45rem; }
   .mobile-date-navigation span { color: #64748b; font-size: 0.68rem; line-height: 1.15; text-align: center; }
-  .mobile-date-navigation button { width: 42px; height: 36px; border: 0; border-radius: 9px; background: #080a4c; color: #fff; font-size: 1.5rem; line-height: 1; touch-action: manipulation; }
+  .mobile-date-navigation button { width: 42px; height: 36px; border: 0; border-radius: 9px; background: var(--brand); color: #fff; font-size: 1.5rem; line-height: 1; touch-action: manipulation; }
   .attendance-table-scroll .table { width: max-content; min-width: 100%; margin-bottom: 0; font-size: 0.72rem; border-radius: 0; overflow: visible; }
   .header-cell { height: 48px; padding: 0.35rem !important; font-size: 0.62rem; letter-spacing: 0; }
   .table tbody td { height: 78px; padding: 0.3rem 0.25rem; }
@@ -451,3 +451,8 @@
   .attendance-card > .d-flex { margin-top: 0.55rem !important; }
   .attendance-card > .d-flex .btn { width: 100%; padding: 0.5rem; font-size: 0.75rem; }
 }
+
+/* Fondo claro compartido con oficina; se conserva el contraste de tablas y alertas. */
+.monitor-wrapper,.monitor-background {background:var(--fondo-institucional);color:var(--text-dark);}
+.modern-table-header {background:var(--degradado-navegacion) !important;}
+.monitor-background::before {animation:none;}

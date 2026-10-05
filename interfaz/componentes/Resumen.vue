@@ -283,10 +283,10 @@ export default {
       return this.rolActual === 'SUPERADMIN';
     },
     themeColor() {
-      return this.rolActual === 'ADMIN' ? '#4c38ff' : '#080A4C';
+      return 'var(--brand)';
     },
     themeColorEnd() {
-      return this.rolActual === 'ADMIN' ? '#3927d8' : '#050630';
+      return 'var(--brand-dark)';
     },
     usuarioNombre() {
       const nombre = this.usuarioActual?.nombre || "Usuario";

@@ -26,7 +26,7 @@
   box-shadow: 0 0 0 5px rgba(76, 56, 255, 0.08), 0 12px 28px rgba(76, 56, 255, 0.18) !important;
 }
 .selected-badge {
-  color: #4c38ff;
+  color: var(--brand);
   background: #ffffff;
   border: 1px solid rgba(76, 56, 255, 0.25);
 }
@@ -65,18 +65,18 @@
   transform: translateY(-2px);
 }
 .btn-outline-primary {
-  color: #080A4C;
-  border-color: #080A4C;
+  color: var(--brand);
+  border-color: var(--brand);
 }
 .btn-outline-primary:hover {
-  background-color: #080A4C;
+  background-color: var(--brand);
   color: white;
 }
 .text-primary {
-  color: #080A4C !important;
+  color: var(--brand) !important;
 }
 .bg-primary {
-  background-color: #080A4C !important;
+  background-color: var(--brand) !important;
 }
 .progress {
   border-radius: 4px;
