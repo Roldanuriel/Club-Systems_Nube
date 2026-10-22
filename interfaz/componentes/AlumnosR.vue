@@ -2,11 +2,7 @@
   <div>
     <h3>Alumnos registrados</h3>
 
-    <div class="toolbar">
-      <button class="btn btn-primary" @click="openAddModal">Agregar alumno</button>
-    </div>
-
-    <div class="student-search">
+<div class="student-search">
       <input v-model="textoBusqueda" type="search" placeholder="Nombre o número de control" @keyup.enter="buscarAlumno" />
       <button class="btn btn-primary" @click="buscarAlumno">Buscar</button>
       <button v-if="busquedaAplicada" class="btn btn-light" @click="limpiarBusqueda">Mostrar todos</button>
@@ -47,45 +43,6 @@
         </tr>
       </tbody>
     </table>
-    </div>
-
-    <!-- Modal agregar (sin Bootstrap) -->
-    <div v-if="showAddModal" class="modal-backdrop" @click.self="showAddModal = false">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h5>Agregar alumno</h5>
-          <button class="btn-close" @click="showAddModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="grid">
-            <input v-model="form.nombre" class="input" placeholder="Nombre(s)" @input="soloTexto('nombre')" />
-            <input v-model="form.apellidoP" class="input" placeholder="Apellido paterno" @input="soloTexto('apellidoP')" />
-            <input v-model="form.apellidoM" class="input" placeholder="Apellido materno" @input="soloTexto('apellidoM')" />
-
-            <select v-model="form.carrera" class="input">
-              <option disabled value="">Selecciona carrera</option>
-              <option v-for="c in carreras" :key="c.id">{{ c.nombre }}</option>
-            </select>
-
-            <select v-model="form.semestre" class="input">
-              <option disabled value="">Selecciona semestre</option>
-              <option v-for="n in 7" :key="n">{{ n }}</option>
-            </select>
-
-            <input v-model="form.control" maxlength="8" class="input" placeholder="Número de control (8 dígitos)" @input="soloNumeros('control')" />
-            <input v-model="form.telefono" class="input" placeholder="Teléfono" @input="soloNumeros('telefono')" />
-
-            <select v-model="form.clubId" class="input">
-              <option disabled value="">Selecciona club</option>
-              <option v-for="c in clubs" :key="c.id || c.nombre" :value="c.id">{{ c.nombre }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer modal-actions">
-          <button class="btn btn-light" @click="showAddModal = false">Cancelar</button>
-          <button class="btn btn-primary" @click="saveRegistered" :disabled="loading">Guardar</button>
-        </div>
-      </div>
     </div>
 
     <!-- Modal editar (sin Bootstrap) -->
@@ -151,7 +108,7 @@
 </template>
 
 <script>
-import { createAlumno, updateAlumno, deleteAlumno } from '../servicios/api';
+import { updateAlumno, deleteAlumno } from '../servicios/api';
 export default {
   name: 'AlumnosR',
   props: {
@@ -174,17 +131,6 @@ export default {
   },
   data() {
     return {
-      form: {
-        nombre: '',
-        apellidoP: '',
-        apellidoM: '',
-        carrera: '',
-        semestre: '',
-        control: '',
-        telefono: '',
-        club: '',
-        clubId: ''
-      },
       editForm: {
         id: null,
         nombre: '',
@@ -199,7 +145,6 @@ export default {
       },
       editingIndex: null,
       pendingDeleteIndex: null,
-      showAddModal: false,
       showEditModal: false,
       showDeleteModal: false,
       loading: false,
@@ -243,28 +188,8 @@ export default {
       const limpio = (valor || '').replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, '').replace(/\s+/g, ' ').trimStart();
       return limpio.split(' ').map(p => p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '').join(' ').trimEnd();
     },
-    openAddModal() {
-      this.form = {
-        nombre: '',
-        apellidoP: '',
-        apellidoM: '',
-        carrera: '',
-        semestre: '',
-        control: '',
-        telefono: '',
-        club: '',
-        clubId: ''
-      };
-      this.showAddModal = true;
-    },
-    soloTexto(campo) {
-      this.form[campo] = this.normalizarTexto(this.form[campo]);
-    },
     soloTextoEdit(campo) {
       this.editForm[campo] = this.normalizarTexto(this.editForm[campo]);
-    },
-    soloNumeros(campo) {
-      this.form[campo] = (this.form[campo] || '').replace(/\D/g, '');
     },
     soloNumerosEdit(campo) {
       this.editForm[campo] = (this.editForm[campo] || '').replace(/\D/g, '');
@@ -279,59 +204,6 @@ export default {
     },
     displayCarrera(nombre) {
       return this.carreraAlias[nombre] || nombre || '';
-    },
-    async saveRegistered() {
-      if (!this.form.nombre || !/^\d{8}$/.test(this.form.control) || this.form.telefono && !/^\d+$/.test(this.form.telefono) || !this.form.clubId) {
-        return this.showError('Verifique los campos (control 8 dígitos, teléfono numérico, club obligatorio)');
-      }
-      try {
-        this.loading = true;
-        const id_club = this.form.clubId ? Number(this.form.clubId) : null;
-        const carObj = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre === this.form.carrera) : null;
-        const carrera_id = carObj && carObj.id ? carObj.id : null;
-        const payload = {
-          nombre: this.form.nombre,
-          apellidoP: this.form.apellidoP,
-          apellidoM: this.form.apellidoM,
-          numeroControl: this.form.control,
-          telefono: this.form.telefono || null,
-          carrera_id,
-          semestre_id: this.form.semestre ? Number(this.form.semestre) : null,
-          id_club
-        };
-        const saved = await createAlumno(payload);
-        // emitir agregado local con id y solicitar recarga desde padre
-        const clubName = Array.isArray(this.clubs) && id_club ? this.clubs.find(c => Number(c.id) === id_club)?.nombre || '' : this.form.club;
-        this.$emit('add-alumno', {
-          id: saved.id,
-          nombre: saved.nombre,
-          apellidoP: saved.apellidoP,
-          apellidoM: saved.apellidoM,
-          carrera: this.form.carrera,
-          semestre: this.form.semestre,
-          control: saved.numeroControl,
-          telefono: saved.telefono,
-          club: clubName
-        }, 'Usuario Oficina');
-        this.$emit('request-reload-alumnos');
-        this.showAddModal = false;
-        this.form = {
-          nombre: '',
-          apellidoP: '',
-          apellidoM: '',
-          carrera: '',
-          semestre: '',
-          control: '',
-          telefono: '',
-          club: '',
-          clubId: ''
-        };
-        this.showToast('Alumno registrado en BD');
-      } catch (e) {
-        this.showError(e.message || 'Error al registrar alumno');
-      } finally {
-        this.loading = false;
-      }
     },
     startEdit(index) {
       this.editingIndex = index;

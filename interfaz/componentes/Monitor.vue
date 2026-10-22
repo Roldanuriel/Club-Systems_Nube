@@ -3,26 +3,8 @@
     <div class="d-flex flex-column monitor-background p-4 min-vh-100">
     <!-- PERFIL DEL MONITOR -->
     <div class="card profile-card shadow-sm p-3 mb-3 bg-white d-flex flex-row align-items-center">
-      <div class="profile-photo-area" title="Cambiar foto de perfil">
-      <template v-if="resolveFotoUrl(usuarioActual.foto) && !usuarioActualImageError">
-        <img
-          :src="resolveFotoUrl(usuarioActual.foto)"
-          alt="Foto del monitor"
-          class="rounded-circle me-3"
-          width="80"
-          height="80"
-          style="object-fit: cover;"
-          @click="$refs.profilePhotoInput.click()"
-          @error="handleUserImageError"
-        />
-      </template>
-      <div v-else class="rounded-circle me-3 d-flex align-items-center justify-content-center text-white fw-bold" style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--brand) 0%, #0066CC 100%); border: 3px solid rgba(255,255,255,0.5); font-size: 1.75rem;" @click="$refs.profilePhotoInput.click()">
+      <div class="profile-initials rounded-circle me-3 d-flex align-items-center justify-content-center text-white fw-bold" aria-hidden="true">
         {{ getInitials(usuarioActual.nombre, usuarioActual.apellidoP) }}
-      </div>
-      <button type="button" class="profile-photo-button" :disabled="subiendoFoto" @click="$refs.profilePhotoInput.click()" aria-label="Cambiar foto de perfil">
-        {{ subiendoFoto ? '…' : '✎' }}
-      </button>
-      <input ref="profilePhotoInput" class="d-none" type="file" accept="image/jpeg,image/png,image/webp" @change="cambiarFotoPerfil" />
       </div>
       <div>
         <h4 class="text-primary mb-2">Registro de Asistencias</h4>
@@ -40,7 +22,6 @@
       </div>
     </div>
 
-    <details v-if="usuarioActual.club_asignado" class="mb-3"><summary>Formatos e impresión del club</summary><FormatosInstitucionales ref="formatos" :club-id="usuarioActual.club_asignado" /></details>
 
     <!-- ALERTAS -->
     <transition name="fade">
@@ -71,7 +52,7 @@
           {{ alumno.nombre }} {{ alumno.apellidoP }}
         </div>
       </div>
-      <div ref="attendanceScroll" class="attendance-table-scroll">
+      <div ref="attendanceScroll" class="attendance-table-scroll" tabindex="0" role="region" aria-label="Lista de estudiantes y asistencias, desplazable">
       <table class="table table-hover align-middle">
          <thead class="text-center modern-table-header">
            <tr>
@@ -234,14 +215,11 @@
 
 <script>
 import axios from "axios";
-import { getPeriodoActivo, getAsistenciasPorClub, actualizarAsistencia, getAlumnos, saveEvaluacion, getEvaluatedStudents, getClubs, uploadFoto, updateUsuario } from "../servicios/api";
+import { getPeriodoActivo, getAsistenciasPorClub, actualizarAsistencia, getAlumnos, saveEvaluacion, getEvaluatedStudents, getClubs } from "../servicios/api";
 import { BACKEND } from "../servicios/direccion-servidor";
 import { authService } from "../servicios/autenticacion";
-import { resolveFotoUrl } from "../servicios/imagenes";
-import FormatosInstitucionales from './FormatosInstitucionales.vue';
 import { calculateEvaluation, evaluationCriteria } from '../servicios/reglas-evaluacion.js';
 export default {
-  components: { FormatosInstitucionales },
   name: "Monitor",
   data() {
     return {
@@ -249,12 +227,9 @@ export default {
         nombre: "",
         apellidoP: "",
         tipo: "",
-        foto: "https://cdn-icons-png.flaticon.com/512/847/847969.png",
         club_asignado: null,
         club_nombre: null
       },
-      usuarioActualImageError: false,
-      subiendoFoto: false,
       monitor: {
         nombre: "",
         club: ""
@@ -304,36 +279,6 @@ export default {
     }
   },
   methods: {
-    async cambiarFotoPerfil(event) {
-      const file = event?.target?.files?.[0];
-      if (!file) return;
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        this.mostrarMensaje('Selecciona una imagen JPG, PNG o WebP', 'alert-warning');
-        event.target.value = '';
-        return;
-      }
-      if (file.size > 2 * 1024 * 1024) {
-        this.mostrarMensaje('La imagen no debe exceder 2 MB', 'alert-warning');
-        event.target.value = '';
-        return;
-      }
-      this.subiendoFoto = true;
-      try {
-        const uploaded = await uploadFoto(file);
-        const userId = this.usuarioActual.id || authService.getUserId();
-        await updateUsuario(userId, {
-          foto: uploaded.file
-        });
-        this.usuarioActual.foto = uploaded.file;
-        this.usuarioActualImageError = false;
-        this.mostrarMensaje('Foto de perfil actualizada', 'alert-success');
-      } catch (error) {
-        this.mostrarMensaje(error?.message || 'No se pudo actualizar la foto', 'alert-danger');
-      } finally {
-        this.subiendoFoto = false;
-        if (event?.target) event.target.value = '';
-      }
-    },
     desplazarFechas(direccion) {
       const contenedor = this.$refs.attendanceScroll;
       if (!contenedor) return;
@@ -372,7 +317,6 @@ export default {
     puedeEvaluar(alumno) {
       return this.estadoAsistencia(alumno).clase === 'status-accredited';
     },
-    resolveFotoUrl,
     getInitials(nombre, apellido) {
       let initials = "";
       if (nombre && typeof nombre === "string" && nombre.trim()) {
@@ -382,9 +326,6 @@ export default {
         initials += apellido.trim()[0].toUpperCase();
       }
       return initials || "U";
-    },
-    handleUserImageError() {
-      this.usuarioActualImageError = true;
     },
     async cargarUsuarioActual() {
       try {
@@ -401,10 +342,8 @@ export default {
           this.usuarioActual.nombre = datos.nombre || "";
           this.usuarioActual.apellidoP = datos.apellidoP || "";
           this.usuarioActual.tipo = datos.tipo || sessionStorage.getItem("usuarioTipo") || "";
-          this.usuarioActual.foto = datos.foto || this.usuarioActual.foto;
           this.usuarioActual.club_asignado = datos.club_asignado ?? null;
           this.usuarioActual.club_nombre = datos.club_nombre ?? null;
-          this.usuarioActualImageError = false;
           this.selectedClubId = this.usuarioActual.club_asignado;
           if (datos.club_nombre) this.monitor.club = datos.club_nombre;
         }
@@ -565,7 +504,6 @@ export default {
         if (res.status === 'success') {
           this.mostrarMensaje('Evaluación guardada exitosamente', 'alert-success');
           this.showEvalModal = false;
-          await this.$refs.formatos?.loadData();
           // NOTA: Auditoría manejada por el backend
           if (!this.evaluados.some(e => e.nombre_estudiante === f.nombre_estudiante)) {
             this.evaluados.push({

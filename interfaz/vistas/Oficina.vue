@@ -235,25 +235,7 @@
           <div class="menu-section">
             <span class="menu-section-title" v-if="!sidebarCollapsed" @click="toggleMenuSectionFromLabel">Reportes <span class="section-chevron">⌄</span></span>
             
-            <a 
-              class="nav-item" 
-              :class="{ 'nav-item-active': currentView === 'Informe' }"
-              @click.prevent="setView('Informe')"
-            >
-              <span class="nav-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M9 17v-2" stroke-linecap="round"/>
-                  <path d="M9 13v-2" stroke-linecap="round"/>
-                  <path d="M9 9V7" stroke-linecap="round"/>
-                  <rect x="3" y="3" width="18" height="18" rx="2" stroke-linecap="round"/>
-                  <path d="M13 7h4" stroke-linecap="round"/>
-                  <path d="M13 11h4" stroke-linecap="round"/>
-                  <path d="M13 15h4" stroke-linecap="round"/>
-                </svg>
-              </span>
-              <span class="nav-label" v-if="!sidebarCollapsed">Informe</span>
-              <span class="nav-active-indicator" v-if="currentView === 'Informe' && !sidebarCollapsed"></span>
-            </a>
+
 
             <a 
               class="nav-item" 
@@ -312,64 +294,7 @@
 
     <!-- Contenido dinámico -->
     <div class="content flex-grow-1 p-4 bg-light overflow-auto">
-      <div v-if="currentView === 'Informe'" class="card mb-4 shadow-sm p-3 report-panel">
-        <div class="row g-3 align-items-end">
-          <div class="col-md-4">
-            <label class="form-label">Desde</label>
-            <input type="date" class="form-control" v-model="informeDesde" />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Hasta</label>
-            <input type="date" class="form-control" v-model="informeHasta" />
-          </div>
-          <div class="col-md-4 d-grid">
-            <button class="btn btn-primary" @click="generarInformeOficina">
-              Generar informe
-            </button>
-          </div>
-        </div>
-        <div class="mt-3 d-flex flex-column flex-md-row justify-content-between gap-2 align-items-center">
-          <p class="mb-0 text-muted small">
-            El rango debe estar dentro de un mismo mes y aplicará a todos los clubs.
-          </p>
-          <button
-            class="btn btn-outline-primary"
-            :disabled="!informeGenerado || !informeTabla.length"
-            @click="descargarInformePDF"
-          >
-            Descargar PDF
-          </button>
-        </div>
-        <div v-if="informeError" class="alert alert-danger mt-3 py-2">
-          {{ informeError }}
-        </div>
-        <div v-if="informeGenerado && informeTabla.length" class="table-responsive mt-3">
-          <table class="table table-sm table-bordered align-middle">
-            <thead class="table-light text-center">
-              <tr>
-                <th>Club</th>
-                <th>Alumno</th>
-                <th>Asistencias</th>
-                <th>Faltas</th>
-                <th>Total</th>
-                <th>% Asistencia</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(fila, index) in informeTabla" :key="index">
-                <td>{{ fila.club }}</td>
-                <td>{{ fila.nombre }}</td>
-                <td class="text-center text-success">{{ fila.asistencias }}</td>
-                <td class="text-center text-danger">{{ fila.faltas }}</td>
-                <td class="text-center">{{ fila.total }}</td>
-                <td class="text-center">{{ fila.porcentaje }}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
       <component
-        v-else
         :is="currentView"
         :clubs="clubs"
         :alumnos="alumnos"
@@ -434,7 +359,6 @@ import Reinscripciones from "../componentes/Reinscripciones.vue";
 import Registros from "../componentes/Registros.vue";
 import { getClubs, getAlumnos, getUsuarios, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs, getPeriodoActivo } from "../servicios/api";
 import axios from "axios";
-import jsPDF from "jspdf";
 import api from "../servicios/cliente-http";
 import { BACKEND } from "../servicios/direccion-servidor";
 import { authService } from "../servicios/autenticacion";
@@ -527,11 +451,6 @@ export default {
       }],
       // lista temporal de alumnos sin registrar (para asignaciones)
       unregisteredList: [],
-      informeDesde: "",
-      informeHasta: "",
-      informeError: "",
-      informeTabla: [],
-      informeGenerado: false,
       toastMsg: "",
       errorMsg: "",
       autoRefreshInterval: null,
@@ -994,115 +913,6 @@ export default {
         // Silencioso en producción
       }
     },
-    parseDateValue(value) {
-      if (!value) return null;
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return new Date(value);
-      }
-      if (/^\d{2}[\/\-]\d{2}$/.test(value)) {
-        const [day, month] = value.split(/[/\-]/).map(v => Number(v));
-        const year = new Date().getFullYear();
-        return new Date(year, month - 1, day);
-      }
-      if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(value)) {
-        const parts = value.split(/[/\-]/).map(v => Number(v));
-        return new Date(parts[2], parts[1] - 1, parts[0]);
-      }
-      const parsed = new Date(value);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    },
-    mismasFechaMesUnico(desde, hasta) {
-      return desde instanceof Date && hasta instanceof Date && desde.getFullYear() === hasta.getFullYear() && desde.getMonth() === hasta.getMonth();
-    },
-    fechasEnRangoOficina() {
-      const desde = this.parseDateValue(this.informeDesde);
-      const hasta = this.parseDateValue(this.informeHasta);
-      if (!desde || !hasta || desde > hasta) return [];
-      return (this.fechas || []).filter(fecha => {
-        const fechaDate = this.parseDateValue(fecha);
-        return fechaDate && fechaDate >= desde && fechaDate <= hasta;
-      });
-    },
-    generarInformeOficina() {
-      this.informeError = "";
-      this.informeTabla = [];
-      this.informeGenerado = false;
-      const desde = this.parseDateValue(this.informeDesde);
-      const hasta = this.parseDateValue(this.informeHasta);
-      if (!desde || !hasta) {
-        this.informeError = "Selecciona fechas válidas de inicio y fin.";
-        return;
-      }
-      if (desde > hasta) {
-        this.informeError = "La fecha de inicio no puede ser mayor a la fecha de fin.";
-        return;
-      }
-      if (!this.mismasFechaMesUnico(desde, hasta)) {
-        this.informeError = "El rango debe estar dentro de un mismo mes.";
-        return;
-      }
-      const diffDays = Math.ceil((hasta - desde) / (1000 * 60 * 60 * 24)) + 1;
-      if (diffDays > 31) {
-        this.informeError = "El rango debe ser de máximo 31 días.";
-        return;
-      }
-      const fechasRango = this.fechasEnRangoOficina();
-      if (!fechasRango.length) {
-        this.informeError = "No hay fechas registradas dentro del rango seleccionado.";
-        return;
-      }
-      this.informeTabla = (this.alumnos || []).map(alumno => {
-        const nombre = `${alumno.nombre || ''} ${alumno.apellidoP || ''} ${alumno.apellidoM || ''}`.trim();
-        const asistencias = fechasRango.reduce((total, fecha) => total + ((alumno.asistencias || {})[fecha] ? 1 : 0), 0);
-        const total = fechasRango.length;
-        const faltas = total - asistencias;
-        const porcentaje = total ? Math.round(asistencias * 100 / total) : 0;
-        return {
-          club: alumno.club || "Sin club",
-          nombre,
-          asistencias,
-          faltas,
-          total,
-          porcentaje
-        };
-      }).sort((a, b) => {
-        const club = a.club.localeCompare(b.club);
-        return club !== 0 ? club : a.nombre.localeCompare(b.nombre);
-      });
-      this.informeGenerado = true;
-    },
-    descargarInformePDF() {
-      if (!this.informeGenerado || !this.informeTabla.length) return;
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: "letter"
-      });
-      const title = "Informe de Asistencias por Club";
-      doc.setFontSize(16);
-      doc.text(title, 40, 40);
-      doc.setFontSize(10);
-      doc.text(`Periodo: ${this.informeDesde} - ${this.informeHasta}`, 40, 60);
-      doc.text(`Generado: ${new Date().toLocaleString()}`, 40, 76);
-      const headers = ["Club", "Alumno", "Asistencias", "Faltas", "Total", "% Asistencia"];
-      let y = 100;
-      const rowHeight = 18;
-      const pageHeight = 750;
-      const margin = 40;
-      doc.setFontSize(9);
-      doc.text(headers.join("   "), margin, y);
-      y += rowHeight;
-      this.informeTabla.forEach((fila, index) => {
-        const line = `${fila.club}   ${fila.nombre}   ${fila.asistencias}   ${fila.faltas}   ${fila.total}   ${fila.porcentaje}%`;
-        if (y > pageHeight) {
-          doc.addPage();
-          y = 50;
-        }
-        doc.text(line, margin, y);
-        y += rowHeight;
-      });
-      doc.save(`informe_asistencias_${this.informeDesde}_${this.informeHasta}.pdf`);
-    }
   },
   async mounted() {
     this.checkMobile();

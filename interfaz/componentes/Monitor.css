@@ -283,27 +283,15 @@
 
 .mobile-date-navigation { display: none; }
 
-.profile-photo-area {
-  position: relative;
+.profile-initials {
   flex: 0 0 auto;
-  cursor: pointer;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--brand) 0%, #0066cc 100%);
+  border: 3px solid rgba(255,255,255,.5);
+  font-size: 1.75rem;
 }
 
-.profile-photo-button {
-  position: absolute;
-  right: 8px;
-  bottom: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: var(--brand);
-  color: #fff;
-  font-weight: 700;
-  line-height: 1;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
-}
 
 .student-name { min-width: 150px; }
 .date-cell { min-width: 72px; }
@@ -421,9 +409,7 @@
   .monitor-background { padding: 0.55rem !important; }
   .monitor-background .card { border-radius: 14px; }
   .profile-card { padding: 0.75rem !important; margin-bottom: 0.6rem !important; align-items: flex-start !important; }
-  .profile-card img,
-  .profile-photo-area > .rounded-circle { width: 52px !important; height: 52px !important; min-width: 52px; margin-right: 0.65rem !important; font-size: 1rem !important; }
-  .profile-photo-button { right: 5px; width: 23px; height: 23px; font-size: 0.72rem; }
+  .profile-initials { width: 52px !important; height: 52px !important; min-width: 52px; margin-right: 0.65rem !important; font-size: 1rem !important; }
   .profile-card h4 { font-size: 1rem; margin-bottom: 0.3rem !important; }
   .profile-card p { font-size: 0.78rem; line-height: 1.25; margin-bottom: 0.25rem; }
   .profile-card .ms-auto { margin-left: 0.35rem !important; }
@@ -456,3 +442,49 @@
 .monitor-wrapper,.monitor-background {background:var(--fondo-institucional);color:var(--text-dark);}
 .modern-table-header {background:var(--degradado-navegacion) !important;}
 .monitor-background::before {animation:none;}
+
+/* La lista se desplaza dentro de la tarjeta, sin alargar toda la página. */
+.attendance-table-scroll {
+  max-height: clamp(260px, 55dvh, 600px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--brand) #e7efff;
+}
+.attendance-table-scroll:focus-visible {outline: 3px solid var(--brand);outline-offset: 3px;}
+.attendance-table-scroll .table {overflow: visible;margin-bottom: 0;}
+.attendance-table-scroll .modern-table-header {
+  position: static;
+  overflow: visible;
+}
+/* El brillo desbordaba el ancho real de la tabla al animarse. */
+.attendance-table-scroll .modern-table-header::before {
+  content: none;
+  animation: none;
+}
+.attendance-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #234b9e !important;
+  color: #fff;
+}
+/* Una sola tabla mantiene alineados nombres y asistencias al desplazarse. */
+@media (max-width: 768px) {
+  .attendance-table-layout {display: block;}
+  .mobile-student-names {display: none;}
+  .attendance-table-scroll {width: 100%;overflow: auto;touch-action: pan-x pan-y;}
+  .attendance-table-scroll .student-name,
+  .attendance-table-scroll .modern-table-header .header-cell:first-child {
+    display: table-cell;
+    position: sticky;
+    left: 0;
+    min-width: 118px;
+    width: 118px;
+    max-width: 118px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .attendance-table-scroll .student-name {z-index: 2;background: #fff;}
+  .attendance-table-scroll .modern-table-header .header-cell:first-child {z-index: 4;}
+}

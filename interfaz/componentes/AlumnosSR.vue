@@ -4,6 +4,9 @@
 
     <div class="toolbar">
       <div class="toolbar-left">
+        <AgregarAlumno :clubs="clubs" :carreras="carreras" :disabled="loading"
+          @add-alumno="(alumno, usuario) => $emit('add-alumno', alumno, usuario)"
+          @request-reload-alumnos="$emit('request-reload-alumnos')" />
         <button class="btn-import" @click="triggerCSV" :disabled="loading">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
@@ -159,8 +162,10 @@
 </template>
 
 <script>
+import AgregarAlumno from './AgregarAlumno.vue';
 import { BACKEND } from '../servicios/direccion-servidor';
 export default {
+  components: { AgregarAlumno },
   name: 'AlumnosSR',
   props: {
     clubs: {
