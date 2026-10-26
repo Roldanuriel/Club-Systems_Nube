@@ -25,6 +25,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     preset: 'node-server',
+    // Rutas de pagos, solicitudes y acreditación centralizadas.
     handlers: rutasServidor,
     externals: {
       inline: ['bcryptjs', 'zod', /reglas-evaluacion\.js$/],

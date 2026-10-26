@@ -4,7 +4,7 @@ import { positiveId } from '../../utilidades/validacion';
 import { audit } from '../../utilidades/auditoria';
 
 export default defineEventHandler(async event => {
-  const user = await requireUser(event, ['SUPERADMIN', 'ADMIN']);
+  const user = await requireUser(event, ['SUPERADMIN']);
   const id = positiveId(getRouterParam(event, 'id'));
   await transaction(async connection => {
     const [documents] = await connection.execute<any[]>(`SELECT id FROM documentos

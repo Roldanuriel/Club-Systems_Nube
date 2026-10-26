@@ -6,13 +6,14 @@ const camelKeys: Record<string, string> = {
 };
 const conflictColumns: Record<string, string[]> = {
   app_config: ['clave'],
+  historial_configuracion: ['periodo_id', 'clave'],
   asistencias: ['id_alumno', 'fecha'],
   datos_medicos_basicos: ['alumno_id'],
   filtros_cerrados: ['periodo_id', 'tipo'],
   rol_permiso: ['rol_id', 'permiso_id'],
   usuario_club: ['usuario_id', 'club_id']
 };
-const tablesWithoutId = new Set(['app_config', 'datos_medicos_basicos', 'rol_permiso']);
+const tablesWithoutId = new Set(['app_config', 'datos_medicos_basicos', 'rol_permiso', 'historial_configuracion']);
 export function normalizeRows(rows: Record<string, unknown>[]) {
   return rows.map(row => {
     const normalized: Record<string, unknown> = {

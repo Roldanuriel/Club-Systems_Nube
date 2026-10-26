@@ -4,10 +4,14 @@ import { db } from '../../utilidades/conexion';
 import { audit } from '../../utilidades/auditoria';
 import { positiveId } from '../../utilidades/validacion';
 const requestSchema = z.object({
-  nombre: z.string().trim().min(1).max(50),
+  nombre: z.string().trim().regex(/^(ENERO - JUNIO|AGOSTO - DICIEMBRE) \d{4}$/),
   fecha_inicio: z.iso.date(),
   fecha_fin: z.iso.date(),
   ya_editado: z.coerce.number().int().min(0).max(1).default(0)
+}).refine(v => {
+ const enero=v.nombre.startsWith('ENERO'); const year=v.nombre.slice(-4);
+ return v.fecha_inicio.startsWith(year) && v.fecha_fin.startsWith(year) &&
+ v.fecha_inicio >= year+(enero?'-01-01':'-08-01') && v.fecha_fin <= year+(enero?'-06-30':'-12-31');
 }).refine(v => v.fecha_fin >= v.fecha_inicio);
 export default defineEventHandler(async event => {
   const currentUser = await requireUser(event, ['SUPERADMIN', 'ADMIN']);

@@ -126,10 +126,10 @@
               <div class="row">
                 <div class="col-md-6"><strong>Estudiante:</strong> {{ evalForm.nombre_estudiante }}</div>
                 <div class="col-md-6"><strong>Club:</strong> {{ evalForm.nombre_club }}</div>
-                <div v-if="currentStudent && currentStudent.faltas >= 3" class="col-12 mt-2">
+                <div v-if="currentStudent && estadoAsistencia(currentStudent).clase === 'status-not-accredited'" class="col-12 mt-2">
                   <div class="alert alert-warning py-1 mb-0 small">
                     <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    Este estudiante tiene {{ currentStudent.faltas }} faltas y no acreditará créditos independientemente de la evaluación.
+                    Este estudiante tiene tres faltas consecutivas y no acreditará créditos independientemente de la evaluación.
                   </div>
                 </div>
                 <div class="col-12 mt-2">
@@ -214,6 +214,8 @@
 </template>
 
 <script>
+import { revisarAsistencia } from '../servicios/acreditacion.js';
+import api from '../servicios/cliente-http';
 import axios from "axios";
 import { getPeriodoActivo, getAsistenciasPorClub, actualizarAsistencia, getAlumnos, saveEvaluacion, getEvaluatedStudents, getClubs } from "../servicios/api";
 import { BACKEND } from "../servicios/direccion-servidor";
@@ -248,6 +250,7 @@ export default {
       evaluados: [],
       periodoActivo: null,
       criteriosList: evaluationCriteria,
+      pesosEvaluacion:null,
       evalForm: {
         nombre_estudiante: '',
         nombre_club: '',
@@ -266,7 +269,7 @@ export default {
     };
   },
   computed: {
-    evaluationSummary() { return calculateEvaluation(Array.from({ length: 7 }, (_, index) => this.evalForm[`criterio_${index + 1}`])); },
+    evaluationSummary() { return calculateEvaluation(Array.from({ length: 7 }, (_, index) => this.evalForm[`criterio_${index + 1}`]),this.pesosEvaluacion); },
     alumnosClub() {
       return (this.alumnosData || []).map(a => {
         if (!a.asistencias) a.asistencias = {};
@@ -306,7 +309,7 @@ export default {
         texto: 'Pendiente',
         clase: 'status-pending'
       };
-      return alumno.faltas < 3 ? {
+      return !revisarAsistencia(this.fechasData, alumno.asistencias || {}).bloqueado ? {
         texto: 'Acreditado',
         clase: 'status-accredited'
       } : {
@@ -522,6 +525,8 @@ export default {
   },
   async mounted() {
     this.periodoActivo = (await getPeriodoActivo()).data;
+    const cfg=(await api.get('/config',{params:{clave:'evaluacion_config_'+this.periodoActivo?.id}})).data.data;
+    if(cfg?.valor){const e=JSON.parse(cfg.valor);this.criteriosList=e.preguntas;this.pesosEvaluacion=e.pesos;}
     await this.cargarUsuarioActual();
     await this.loadAsistencias();
     // Auto-refresco cada 10 segundos

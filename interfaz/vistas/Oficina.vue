@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" lang="es" spellcheck="true">
     <!-- Mobile Hamburger Toggle -->
     <button 
       class="sidebar-toggle-mobile" 
@@ -22,64 +22,23 @@
     <!-- Sidebar -->
     <div
       class="sidebar"
+      @mouseenter="!isMobile && (sidebarCollapsed=false)"
+      @mouseleave="replegarMenu($event)"
+      @focusin="!isMobile && (sidebarCollapsed=false)"
+      @focusout="replegarMenu($event)"
       :class="{ 'sidebar-collapsed': sidebarCollapsed, 'sidebar-mobile-open': sidebarOpen, 'sidebar-admin': isAdmin, 'sidebar-superadmin': isSuperAdmin }"
     >
       <div class="sidebar-inner">
-        <!-- Logo / App Name -->
-        <div class="app-logo-section">
-          <div class="app-icon">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.9"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-            </svg>
-          </div>
-          <span class="app-name" v-if="!sidebarCollapsed">Club Systems</span>
-          <button 
-            type="button"
-            class="collapse-btn" 
-            @click="sidebarCollapsed = !sidebarCollapsed"
-            v-if="!isMobile"
-            :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'"
-            :title="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Profile Section -->
-        <div class="profile-section">
-          <div class="profile-avatar-wrapper">
-            <div class="avatar-glow"></div>
-            <template v-if="resolveFotoUrl(usuarioActual.foto) && !usuarioActualImageError">
-              <img
-                :src="resolveFotoUrl(usuarioActual.foto)"
-                alt="Usuario"
-                class="profile-avatar"
-                @error="handleImageError"
-              />
-            </template>
-            <div v-else class="profile-avatar fallback-avatar">
-              <span class="avatar-initials">{{ getUserInitials() }}</span>
-            </div>
-            <div class="status-indicator online"></div>
-          </div>
-          <div class="profile-info" v-if="!sidebarCollapsed">
-            <span class="profile-name">{{ usuarioActual.nombre }} {{ usuarioActual.apellidoP }}</span>
-            <span class="profile-role">
-              <span class="role-dot"></span>
-              {{ usuarioActual.rol || (usuarioActual.tipo === 'OFICINA' ? 'ADMIN' : usuarioActual.tipo) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Menu Divider -->
-        <div class="menu-divider" v-if="!sidebarCollapsed"></div>
-
+        <header class="compact-identity"><div class="brand-symbol" aria-hidden="true"><i class="bi bi-layers"></i></div><div v-if="!sidebarCollapsed" class="identity-copy"><strong>Club Systems</strong><small>Gestión escolar</small></div><button v-if="!isMobile" class="identity-toggle" @click="sidebarCollapsed=!sidebarCollapsed" :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'"><i class="bi bi-layout-sidebar"></i></button></header>
+          <div class="account-summary"><span class="identity-mark">{{ getUserInitials() }}</span><div v-if="!sidebarCollapsed"><strong>{{ usuarioActual.nombre }} {{ usuarioActual.apellidoP }}</strong><small>{{ isSuperAdmin ? 'Superadministrador' : 'Administración' }}</small></div></div>
         <!-- Navigation Menu -->
-        <nav class="nav-menu" @click="handleNavMenuClick">
+        <nav v-if="isSuperAdmin" class="school-navigation" aria-label="Menú del superadministrador">
+          <section v-for="(grupo,indice) in menuEscolar" :key="grupo[0]" class="school-navigation-group">
+            <button class="group-toggle" :aria-expanded="grupoAbierto===grupo[0]" :aria-controls="'grupo-'+indice" :title="grupo[0]" @click="abrirGrupo(grupo[0])"><i :class="'bi bi-'+grupo[1][0][2]"></i><span v-if="!sidebarCollapsed">{{ grupo[0] }}</span><i v-if="!sidebarCollapsed" class="bi bi-chevron-down group-chevron" :class="{rotated:grupoAbierto===grupo[0]}"></i></button>
+            <div :id="'grupo-'+indice" class="group-reveal" :class="{expanded:grupoAbierto===grupo[0]}"><div class="group-items" :inert="grupoAbierto!==grupo[0]"><button v-for="item in grupo[1]" :key="item[0]" :title="item[1]" :aria-current="currentView===item[0] ? 'page' : undefined" :class="{selected:currentView===item[0]}" @click="setView(item[0])"><i :class="'bi bi-'+item[2]"></i><span v-if="!sidebarCollapsed">{{ item[1] }}</span></button></div></div>
+          </section>
+        </nav>
+        <nav v-else class="nav-menu" @click="handleNavMenuClick">
          <div class="menu-section menu-section-open">
              <span class="menu-section-title" v-if="!sidebarCollapsed" @click="toggleMenuSectionFromLabel">Gestión <span class="section-chevron">⌄</span></span>
              
@@ -105,7 +64,7 @@
                v-if="isSuperAdmin || isAdmin"
                class="nav-item" 
                :class="{ 'nav-item-active': currentView === 'Dashboard' }"
-               @click.prevent="setView('Dashboard')"
+               @click.prevent="setView('Clubes')"
              >
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -278,6 +237,7 @@
 
         <!-- Logout Button -->
         <div class="logout-section">
+
           <button class="logout-btn" @click="cerrarSesion">
             <span class="logout-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -293,9 +253,11 @@
     </div>
 
     <!-- Contenido dinámico -->
-    <div class="content flex-grow-1 p-4 bg-light overflow-auto">
+    <div class="content flex-grow-1 p-4 bg-light overflow-auto" :data-page="currentView">
       <component
-        :is="currentView"
+        :is="currentView" :key="currentView"
+        :modo="{Pagos:'pagos',Adeudos:'adeudos',Solicitudes:'solicitudes'}[currentView]"
+        :manage="isSuperAdmin"
         :clubs="clubs"
         :alumnos="alumnos"
         :usuarios="usuarios"
@@ -324,18 +286,7 @@
       />
     </div>
 
-    <!-- Toast container for messages (global) -->
-    <div
-      class="toast-container position-fixed bottom-0 end-0 p-3"
-      style="z-index: 2000"
-    >
-      <div class="toast text-bg-success" id="toastSuccess">
-        <div class="toast-body">{{ toastMsg }}</div>
-      </div>
-      <div class="toast text-bg-danger" id="toastError">
-        <div class="toast-body">{{ errorMsg }}</div>
-      </div>
-    </div>
+    <div class="system-notices" :class="{'club-success-notice':toastVisible && toastMsg.startsWith('Club ')}" aria-live="polite"><Transition name="notice"><div v-if="toastVisible" class="toast show notice-card notice-success" role="status"><div class="toast-header"><i class="bi bi-check-circle-fill me-2"></i><strong class="me-auto">Operación completada</strong><button class="btn-close" aria-label="Cerrar aviso" @click="toastVisible=false"></button></div><div class="toast-body">{{ toastMsg }}</div></div></Transition><Transition name="notice"><div v-if="errorVisible" class="toast show notice-card notice-error" role="alert"><div class="toast-header"><i class="bi bi-exclamation-circle-fill me-2"></i><strong class="me-auto">Revisa esta información</strong><button class="btn-close" aria-label="Cerrar error" @click="errorVisible=false"></button></div><div class="toast-body">{{ errorMsg }}</div></div></Transition></div>
   </div>
 </template>
 
@@ -346,6 +297,11 @@ import { resolveFotoUrl } from "../servicios/imagenes";
   Componentes hijos importados desde la misma carpeta 'components'.
 */
 
+import Clubes from '../componentes/Clubes.vue';
+import Listas from '../componentes/Listas.vue';
+import ConfiguracionDocumental from '../componentes/ConfiguracionDocumental.vue';
+import GestionEscolar from '../componentes/GestionEscolar.vue';
+import FormatosInstitucionales from '../componentes/ConfiguracionFormatos.vue';
 import Gestion from "../componentes/Gestion.vue";
 import Dashboard from "../componentes/Resumen.vue";
 import ClubsR from "../componentes/ClubsR.vue";
@@ -365,7 +321,8 @@ import { authService } from "../servicios/autenticacion";
 export default {
   name: "Oficina",
   components: {
-    Gestion,
+    Gestion, Clubes, Listas, ConfiguracionDocumental,
+    Pagos:GestionEscolar,Adeudos:GestionEscolar,Solicitudes:GestionEscolar,CargaFormatos:FormatosInstitucionales,
     Dashboard,
     ClubsR,
     AlumnosSR,
@@ -380,12 +337,10 @@ export default {
   emits: ["navigate"],
   computed: {
     isSuperAdmin() {
-      const stored = authService.getUserData() || {};
-      return (this.usuarioActual.rol || stored.rol || stored.tipo) === 'SUPERADMIN';
+      return (this.usuarioActual.rol || this.usuarioActual.tipo) === 'SUPERADMIN';
     },
     isAdmin() {
-      const stored = authService.getUserData() || {};
-      return (this.usuarioActual.rol || stored.rol || stored.tipo) === 'ADMIN';
+      return (this.usuarioActual.rol || this.usuarioActual.tipo) === 'ADMIN';
     }
   },
   data() {
@@ -399,6 +354,9 @@ export default {
       },
       usuarioActualImageError: false,
       currentView: "Dashboard",
+      toastVisible:false,errorVisible:false,toastTimer:null,errorTimer:null,
+      grupoAbierto:"",
+      menuEscolar:[["Administración de usuarios",[["Gestion","Todos los usuarios","people"]]],["Gestión de alumnos",[["AlumnosSR","Carga de alumnos","person-plus"],["AlumnosR","Listado de alumnos","people-fill"],["Clubes","Clubes","grid"]]],["Procesos escolares",[["Listas","Listas","list-check"],["Evaluaciones","Evaluaciones","clipboard-check"],["Reinscripciones","Reinscripciones","arrow-repeat"]]],["Gestión financiera",[["Pagos","Registro de pagos","receipt"],["Adeudos","Adeudos","wallet2"]]],["Control escolar",[["Constancias","Emisión de constancias","file-earmark-check"],["Solicitudes","Solicitudes de constancias","file-earmark-text"]]],["Configuración escolar",[["Periodos","Periodos escolares","calendar3"]]],["Gestión documental",[["CargaFormatos","Carga de formatos","cloud-upload"]]],["Configuración",[["Auditoria","Auditoría","shield-check"],["ConfiguracionDocumental","Configuración documental","sliders"]]]],
       clubs: [],
       periodoActivo: null,
       carreras: [{
@@ -454,12 +412,13 @@ export default {
       toastMsg: "",
       errorMsg: "",
       autoRefreshInterval: null,
-      sidebarCollapsed: false,
+      sidebarCollapsed: true,
       sidebarOpen: false,
       isMobile: false
     };
   },
   beforeUnmount() {
+    clearTimeout(this.toastTimer);clearTimeout(this.errorTimer);
     if (this.autoRefreshInterval) {
       clearInterval(this.autoRefreshInterval);
       this.autoRefreshInterval = null;
@@ -467,8 +426,11 @@ export default {
     window.removeEventListener('resize', this.checkMobile);
   },
   methods: {
+    replegarMenu(e) { if(this.isMobile)return;const dentro=e.type==='focusout' ? e.currentTarget.contains(e.relatedTarget)||e.currentTarget.matches(':hover') : false;if(!dentro)this.sidebarCollapsed=true; },
+    abrirGrupo(nombre){if(this.sidebarCollapsed)this.sidebarCollapsed=false;this.grupoAbierto=this.grupoAbierto===nombre?'':nombre;},
     checkMobile() {
       this.isMobile = window.innerWidth <= 900;
+      if(this.isMobile)this.sidebarCollapsed=false;
       if (!this.isMobile) {
         this.sidebarOpen = false;
       }
@@ -506,6 +468,8 @@ export default {
       }
     },
     setView(view) {
+      if(['CargaFormatos','ConfiguracionDocumental'].includes(view)&&!this.isSuperAdmin)return;
+      const grupo=this.menuEscolar.find(g=>g[1].some(i=>i[0]===view));if(grupo)this.grupoAbierto=grupo[0];
       if (view === 'Gestion' && !this.isSuperAdmin) {
         this.showError('Solo el superadministrador puede gestionar usuarios');
         return;
@@ -679,12 +643,12 @@ export default {
         };
         if (!mapped.nombre) {
           await this.loadClubs();
-          this.showToast("Club agregado correctamente");
+          this.showToast("Club agregado perfectamente");
           return;
         }
         this.clubs.unshift(mapped);
         this.logAction(actor, "Insertar", "club", `Se creó el club "${mapped.nombre}"`);
-        this.showToast("Club agregado correctamente");
+        this.showToast("Club agregado perfectamente");
       } catch (e) {
         this.showError(e.message || "Error al crear el club");
       }
@@ -714,6 +678,7 @@ export default {
           descripcion: savedRow.descripcion,
           cupo: savedRow.cupo_limite,
           ocupados: current.ocupados || 0,
+          monitores: current.monitores || [],
           id_responsable: savedRow.id_responsable,
           creado_en: savedRow.creado_en
         };
@@ -885,34 +850,8 @@ export default {
       // El backend genera los logs automáticamente en cada operación
     },
     // mensajes
-    showToast(msg) {
-      this.toastMsg = msg;
-      try {
-        if (window && window.bootstrap && window.bootstrap.Toast) {
-          const t = new window.bootstrap.Toast(document.getElementById("toastSuccess"));
-          t.show();
-        } else if (typeof bootstrap !== "undefined" && bootstrap.Toast) {
-          const t = new bootstrap.Toast(document.getElementById("toastSuccess"));
-          t.show();
-        }
-      } catch (e) {
-        // Silencioso en producción
-      }
-    },
-    showError(msg) {
-      this.errorMsg = msg;
-      try {
-        if (window && window.bootstrap && window.bootstrap.Toast) {
-          const t = new window.bootstrap.Toast(document.getElementById("toastError"));
-          t.show();
-        } else if (typeof bootstrap !== "undefined" && bootstrap.Toast) {
-          const t = new bootstrap.Toast(document.getElementById("toastError"));
-          t.show();
-        }
-      } catch (e) {
-        // Silencioso en producción
-      }
-    },
+    showToast(msg){clearTimeout(this.toastTimer);this.toastMsg=msg;this.toastVisible=true;this.toastTimer=setTimeout(()=>this.toastVisible=false,4500);},
+    showError(msg){clearTimeout(this.errorTimer);this.errorMsg=msg;this.errorVisible=true;this.errorTimer=setTimeout(()=>this.errorVisible=false,8000);},
   },
   async mounted() {
     this.checkMobile();

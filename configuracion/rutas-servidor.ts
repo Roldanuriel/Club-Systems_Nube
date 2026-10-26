@@ -6,6 +6,9 @@ const archivo = (ruta: string) => fileURLToPath(new URL(ruta, import.meta.url)).
 // Las direcciones públicas se conservan aunque los archivos estén nombrados en español.
 // Para añadir una operación, indica su dirección, método HTTP y archivo responsable.
 export const rutasServidor = [
+ {route:'/api/gestion-escolar',method:'get' as const,handler:archivo('../servidor/operaciones/gestion-escolar.obtener.ts')},
+ {route:'/api/gestion-escolar',method:'post' as const,handler:archivo('../servidor/operaciones/gestion-escolar.guardar.ts')},
+  { route: '/api/constancias', method: 'get' as const, handler: archivo('../servidor/operaciones/constancias.obtener.ts') },
   { route: '/api/asistencias', method: 'get' as const, handler: archivo('../servidor/operaciones/asistencias.obtener.ts') },
   { route: '/api/asistencias', method: 'post' as const, handler: archivo('../servidor/operaciones/asistencias.guardar.ts') },
   { route: '/api/asistencias', method: 'put' as const, handler: archivo('../servidor/operaciones/asistencias.actualizar.ts') },

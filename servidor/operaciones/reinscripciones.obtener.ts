@@ -14,10 +14,12 @@ export default defineEventHandler(async event => {
   });
   const [databaseRows] = await db().execute<DatabaseRow[]>(`SELECT a.*, c.nombre carrera_nombre, cl.nombre club_anterior
        FROM alumnos a LEFT JOIN carreras c ON c.id = a.carrera_id LEFT JOIN clubs cl ON cl.id = a.id_club
-      WHERE a.estado_periodo = 'ACREDITADO'
+      WHERE (a.estado_periodo = 'ACREDITADO' OR EXISTS (SELECT 1 FROM autorizaciones_inscripcion au WHERE au.alumno_id=a.id AND au.periodo_id=?))
+        AND (NOT EXISTS (SELECT 1 FROM adeudos_material d JOIN alumnos deudor ON deudor.id=d.alumno_id WHERE deudor.numeroControl=a.numeroControl AND d.resuelto=FALSE) OR EXISTS (SELECT 1 FROM autorizaciones_inscripcion au WHERE au.alumno_id=a.id AND au.periodo_id=?))
+        AND EXISTS (SELECT 1 FROM periodos anterior WHERE anterior.id=a.periodo_id AND anterior.estado='CERRADO')
         AND a.id = (SELECT MAX(last.id) FROM alumnos last WHERE last.numeroControl = a.numeroControl)
         AND NOT EXISTS (SELECT 1 FROM alumnos current WHERE current.numeroControl = a.numeroControl AND current.periodo_id = ?)
-      ORDER BY a.apellidoP, a.apellidoM, a.nombre`, [periods[0].id]);
+      ORDER BY a.apellidoP, a.apellidoM, a.nombre`, [periods[0].id, periods[0].id, periods[0].id]);
   return {
     status: 'success',
     data: databaseRows

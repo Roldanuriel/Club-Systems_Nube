@@ -67,40 +67,43 @@
 
     <!-- Modal agregar/editar -->
     <div class="modal fade" id="modalClubsR" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content club-editor">
+          <div v-if="!confirmarEdicion" class="modal-header">
             <h5 class="modal-title">{{ editingIndex === null ? 'Agregar nuevo club' : 'Editar club' }}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body">
+          <div v-if="!confirmarEdicion" class="modal-body">
+            <p class="editor-intro">Define la actividad y su capacidad. Todos los campos son obligatorios.</p>
+            <p v-if="formError" class="alert alert-danger" role="alert">{{ formError }}</p>
             <div class="mb-2">
-              <label class="form-label mb-1 fw-semibold">Nombre del club</label>
-              <input v-model="localClub.nombre" class="form-control" placeholder="Ej: Danza Folclórica" @input="soloTextoClub" />
-              <div class="form-text">Solo letras y espacios. Cada palabra debe iniciar con mayúscula.</div>
+              <label class="form-label mb-1 fw-semibold" for="club-nombre">Nombre del club <span class="text-danger" aria-hidden="true">*</span></label>
+              <input v-model="localClub.nombre" id="club-nombre" required :aria-invalid="intentado && !!erroresCampo.nombre" :class="{'is-invalid':intentado && erroresCampo.nombre}" spellcheck="true" lang="es" autocorrect="on" autocomplete="on" list="nombres-clubes" class="form-control" placeholder="Ej: Danza Folclórica" @input="soloTextoClub" />
+              <datalist id="nombres-clubes"><option v-for="n in ['Ajedrez','Atletismo','Basquetbol','Danza Folclórica','Fútbol','Música','Teatro','Voleibol']" :key="n" :value="n" /></datalist><div class="form-text">Solo letras y espacios. Cada palabra debe iniciar con mayúscula.</div>
             </div>
             <div class="mb-2">
-              <label class="form-label mb-1 fw-semibold">Tipo de club</label>
-              <select v-model="localClub.tipo" class="form-select">
+              <label class="form-label mb-1 fw-semibold" for="club-tipo">Tipo de club <span class="text-danger" aria-hidden="true">*</span></label>
+              <select v-model="localClub.tipo" id="club-tipo" required :aria-invalid="intentado && !!erroresCampo.tipo" :class="{'is-invalid':intentado && erroresCampo.tipo}" class="form-select">
                 <option value="CULTURAL">Cultural (danza, teatro, música…)</option>
                 <option value="DEPORTIVO">Deportivo (fútbol, voleibol, basquetbol…)</option>
               </select>
               <div class="form-text">Selecciona la categoría que corresponde a la actividad del club.</div>
             </div>
             <div class="mb-2">
-              <label class="form-label mb-1 fw-semibold">Descripción</label>
-              <input v-model="localClub.descripcion" class="form-control" placeholder="Ej: Grupo De Baile Tradicional" @input="soloTextoDescripcion" />
+              <label class="form-label mb-1 fw-semibold" for="club-descripcion">Descripción <span class="text-danger" aria-hidden="true">*</span></label>
+              <input v-model="localClub.descripcion" id="club-descripcion" required :aria-invalid="intentado && !!erroresCampo.descripcion" :class="{'is-invalid':intentado && erroresCampo.descripcion}" spellcheck="true" lang="es" autocorrect="on" autocomplete="on" class="form-control" placeholder="Ej: Grupo De Baile Tradicional" @input="soloTextoDescripcion" />
               <div class="form-text">Descripción breve de la actividad que realiza el club.</div>
             </div>
             <div class="mb-2">
-              <label class="form-label mb-1 fw-semibold">Cupo máximo</label>
-              <input v-model.number="localClub.cupo" type="number" min="1" max="50" class="form-control" placeholder="Ej: 25" />
+              <label class="form-label mb-1 fw-semibold" for="club-cupo">Cupo máximo <span class="text-danger" aria-hidden="true">*</span></label>
+              <input v-model.number="localClub.cupo" id="club-cupo" required :aria-invalid="intentado && !!erroresCampo.cupo" :class="{'is-invalid':intentado && erroresCampo.cupo}" type="number" min="1" max="50" class="form-control" placeholder="Ej: 25" />
               <div class="form-text">Número máximo de alumnos permitidos (entre 1 y 50).</div>
             </div>
           </div>
-          <div class="modal-footer">
+          <div v-if="confirmarEdicion" class="edit-confirmation" role="alert"><i class="bi bi-exclamation-triangle-fill confirmation-symbol" aria-hidden="true"></i><strong>¿Estás seguro de guardar los cambios?</strong><p>Se actualizará la información de este club.</p><button class="btn btn-outline-secondary me-2" @click="confirmarEdicion=false">Seguir editando</button><button class="btn btn-warning" @click="saveClub(true)">Sí, guardar cambios</button></div>
+          <div v-if="!confirmarEdicion" class="modal-footer">
             <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn btn-primary" @click="saveClub">{{ editingIndex === null ? 'Guardar' : 'Actualizar' }}</button>
+            <button v-if="!confirmarEdicion" class="btn btn-primary" @click="saveClub()">{{ editingIndex === null ? 'Guardar' : 'Actualizar' }}</button>
           </div>
         </div>
       </div>
@@ -108,18 +111,18 @@
 
     <!-- Confirm delete modal -->
     <div class="modal fade" id="confirmDeleteClub" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content club-editor">
           <div class="modal-header bg-danger text-white">
             <h5 class="modal-title">Confirmar eliminación</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <p>¿Seguro que desea eliminar este club?</p>
+            <i class="bi bi-trash3-fill confirmation-symbol text-danger" aria-hidden="true"></i><p class="fw-semibold">¿Estás seguro de eliminar este club?</p><p>Una vez eliminado, no podrás recuperar la información del club desde el sistema.</p>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn btn-danger" @click="deleteConfirmed">Eliminar</button>
+            <button class="btn btn-danger" :disabled="deleteSeconds>0" @click="deleteConfirmed">{{ deleteSeconds>0 ? "Espera "+deleteSeconds+" segundos" : "Sí, eliminar definitivamente" }}</button>
           </div>
         </div>
       </div>
@@ -163,6 +166,7 @@ export default {
         descripcion: '',
         cupo: 0
       },
+      deleteSeconds:5,deleteTimer:null,deleteReadyAt:0,intentado:false,formError:'',confirmarEdicion:false,
       editingIndex: null,
       pendingDeleteIndex: null,
       clubSeleccionado: null,
@@ -176,6 +180,7 @@ export default {
     };
   },
   computed: {
+    erroresCampo(){const c=this.localClub;return {nombre:!String(c.nombre||'').trim(),tipo:!['CULTURAL','DEPORTIVO'].includes(c.tipo),descripcion:!String(c.descripcion||'').trim(),cupo:!Number.isInteger(Number(c.cupo))||Number(c.cupo)<1||Number(c.cupo)>50};},
     alumnosVersion() {
       return (this.alumnos || []).map(alumno => `${alumno.id}:${alumno.clubId ?? alumno.club_id ?? ''}`).join('|');
     },
@@ -282,6 +287,7 @@ export default {
       this.localClub.descripcion = this.normalizarTexto(this.localClub.descripcion);
     },
     openModal() {
+      this.intentado=false;this.formError="";this.confirmarEdicion=false;
       if (!this.canManage) return;
       this.editingIndex = null;
       this.localClub = {
@@ -293,6 +299,7 @@ export default {
       new bootstrap.Modal(document.getElementById('modalClubsR')).show();
     },
     startEdit(club) {
+      this.intentado=false;this.formError="";this.confirmarEdicion=false;
       if (!this.canManage) return;
       this.editingIndex = club?.id ?? null;
       const c = club || {};
@@ -323,12 +330,13 @@ export default {
       }
       return '';
     },
-    saveClub() {
+    saveClub(confirmado=false) {
+      this.intentado=true;this.formError="";
       if (!this.canManage) return;
       // Formatear al guardar, sin interferir con la escritura del usuario.
       this.localClub.nombre = this.formatearTitulo(this.localClub.nombre);
       this.localClub.descripcion = this.formatearTitulo(this.localClub.descripcion);
-      const error = this.validarClub();
+      const error = this.validarClub() || (this.erroresCampo.tipo ? "Selecciona el tipo de club." : "");
       if (error) {
         this.$emit('log', {
           usuario: 'Usuario Oficina',
@@ -336,9 +344,12 @@ export default {
           tipo: 'club',
           descripcion: 'Campos obligatorios'
         });
-        this.emitError(error);
+        this.formError=error;
+        this.$nextTick(()=>document.querySelector("#modalClubsR .is-invalid")?.focus());
         return;
       }
+      if(this.editingIndex!==null && confirmado!==true){this.confirmarEdicion=true;return;}
+      this.confirmarEdicion=false;
       if (this.editingIndex === null) {
         this.$emit('add-club', {
           ...this.localClub
@@ -357,17 +368,21 @@ export default {
     },
     confirmDelete(club) {
       if (!this.canManage) return;
+      clearInterval(this.deleteTimer);this.deleteSeconds=5;this.deleteReadyAt=Date.now()+5000;
+      this.deleteTimer=setInterval(()=>{this.deleteSeconds=Math.max(0,Math.ceil((this.deleteReadyAt-Date.now())/1000));if(!this.deleteSeconds)clearInterval(this.deleteTimer);},200);
       this.pendingDeleteIndex = club?.id ?? null;
       new bootstrap.Modal(document.getElementById('confirmDeleteClub')).show();
     },
     deleteConfirmed() {
-      if (!this.canManage) return;
+      if (!this.canManage || this.deleteSeconds>0 || Date.now()<this.deleteReadyAt) return;
+      clearInterval(this.deleteTimer);
       this.$emit('delete-club', this.pendingDeleteIndex, 'Usuario Oficina');
       // Mover foco antes de cerrar para evitar el warning de aria-hidden
       if (document.activeElement) document.activeElement.blur();
       bootstrap.Modal.getInstance(document.getElementById('confirmDeleteClub')).hide();
     }
   },
+  beforeUnmount(){clearInterval(this.deleteTimer);},
   mounted() {
     // Solución global al warning de aria-hidden:
     // Cada vez que Bootstrap VAYA A ocultar cualquiera de los modales,
@@ -384,3 +399,8 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+.club-editor{border:1px solid #fff;border-radius:26px;background:linear-gradient(145deg,#fff,#edf4ff);box-shadow:0 24px 70px #18315930;overflow:hidden}.club-editor .modal-header{padding:24px;border-bottom:1px solid #dce7fa;background:linear-gradient(120deg,#e8f2ff,#f8fbff)}.club-editor .modal-title{font-family:'Manrope',sans-serif;font-weight:800;color:#204b91}.club-editor .modal-body{padding:24px}.editor-intro{color:#637b9c;font-size:.85rem;margin-bottom:22px}.club-editor .mb-2{margin-bottom:20px!important}.club-editor .form-label{font-size:.85rem;color:#2b466e}.club-editor .form-control,.club-editor .form-select{border:1px solid #ccdff8;border-radius:13px;background:#ffffffb0;padding:12px 14px;transition:border-color .2s,box-shadow .2s}.club-editor .form-control:focus,.club-editor .form-select:focus{box-shadow:0 0 0 4px #3985e51b;border-color:#478ee8}.club-editor .is-invalid{border:2px solid #d64d67!important;background:#fff5f6;box-shadow:0 0 0 3px #d64d6716}.club-editor .form-text{font-size:.74rem;color:#6b819f;margin-top:7px}.club-editor .modal-footer{padding:18px 24px;border-top:1px solid #dce7fa}.club-editor .btn{border-radius:12px;padding:10px 16px;font-weight:600;transition:transform .2s,box-shadow .2s}.club-editor .btn:hover{transform:translateY(-2px);box-shadow:0 5px 14px #285ca624}.club-editor .btn-primary{background:linear-gradient(120deg,#168df0,#314bea);border:0}.edit-confirmation{border:1px solid #afc8ef;background:#e7f0ff;border-radius:16px;padding:18px;color:#234d8a}.edit-confirmation p{font-size:.85rem;margin:8px 0 14px}#confirmDeleteClub .modal-header{background:#fff0f3!important}.modal.fade .modal-dialog{transition:transform .28s ease-out}.modal.fade:not(.show) .modal-dialog{transform:translateY(20px) scale(.97)}@media(prefers-reduced-motion:reduce){.modal.fade .modal-dialog,.club-editor .btn{transition:none;transform:none}}
+</style>
+<style scoped>.edit-confirmation{margin:0!important;padding:36px 28px;text-align:center;background:linear-gradient(135deg,#fff9dd,#ffedaf);border:2px solid #efc654;border-radius:24px;color:#795711}.edit-confirmation strong{display:block;font-size:1.25rem}.confirmation-symbol{display:block;font-size:2.6rem;margin-bottom:16px}.edit-confirmation .btn-warning{background:#f2c441;color:#513c0b;border-color:#dfb334}#confirmDeleteClub .club-editor{border:2px solid #e05a6a;background:#fff5f6}#confirmDeleteClub .modal-header{background:#ffe0e5!important}#confirmDeleteClub .modal-title{color:#ac203c}#confirmDeleteClub .modal-body{text-align:center;color:#8c2840}#confirmDeleteClub .btn-danger{background:#d52949;border-color:#c0213e;font-weight:700}#confirmDeleteClub .btn-danger:disabled{background:#f5b0bd;color:#702136;border-color:#eda0b0;opacity:1}</style>

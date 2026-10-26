@@ -2,17 +2,6 @@
   <div>
     <h4 class="text-primary mb-3">Evaluaciones</h4>
 
-    <ul class="nav nav-tabs mb-4">
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: vista === 'evaluaciones' }" @click="vista = 'evaluaciones'">Evaluaciones de alumnos</button>
-      </li>
-      <li v-if="puedeGestionarFormatos" class="nav-item">
-        <button class="nav-link" :class="{ active: vista === 'formato' }" @click="vista = 'formato'">Formatos y documentos</button>
-      </li>
-    </ul>
-
-    <FormatosInstitucionales v-if="vista === 'formato' && puedeGestionarFormatos" manage />
-
     <!-- Búsqueda de alumnos -->
     <div v-if="vista === 'evaluaciones'" class="mb-4">
       <input
@@ -257,11 +246,12 @@
 </template>
 
 <script>
+import { revisarAsistencia } from '../servicios/acreditacion.js';
 import { getAsistenciasPorClub, getFirmas, saveConfig, getConfig, getEvaluatedStudents } from "../servicios/api";
-import FormatosInstitucionales from './FormatosInstitucionales.vue';
+
 export default {
   name: "Evaluaciones",
-  components: { FormatosInstitucionales },
+
   props: ["clubs", "alumnos", "usuarios", "carreras", "usuarioActual"],
   data() {
     return {
@@ -283,7 +273,7 @@ export default {
   computed: {
     puedeGestionarFormatos() {
       const rol = String(this.usuarioActual?.rol || this.usuarioActual?.tipo || '').toUpperCase();
-      return rol === 'SUPERADMIN' || rol === 'ADMIN';
+      return rol === 'SUPERADMIN';
     },
     sortedClubs() {
       if (!this.clubs) return [];
@@ -331,6 +321,7 @@ export default {
               ...al,
               carrera: carreraNombre,
               asistencias: map,
+              consecutivas: revisarAsistencia(data.fechas || [], map).consecutivas,
               faltas,
               club: club.nombre
             };
@@ -373,7 +364,7 @@ export default {
       this.collapsedClubs[id] = !this.collapsedClubs[id];
     },
     isAcreditado(alumno) {
-      return (alumno.faltas || 0) <= 2;
+      return Number(alumno.consecutivas || 0) < 3;
     },
     isEvaluated(alumno) {
       return !!this.findEvaluation(alumno);

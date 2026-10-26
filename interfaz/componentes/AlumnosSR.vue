@@ -726,7 +726,7 @@ export default {
       if (resumen.asignados) this.$emit('request-reload-alumnos');
       return resumen;
     },
-    // ─── Asignar alumno a club (POST a alumnos.php) ─────────
+    // ─── Asignar alumno a club (POST a /api/alumnos) ─────────
     async asignarAlumno(alumno, idx, club, opciones = {}) {
       if (idx < 0 || !club) return false;
       const limite = this.esClubFiltro(club.nombre) ? 40 : Number(club.cupo || club.cupo_limite || 0);

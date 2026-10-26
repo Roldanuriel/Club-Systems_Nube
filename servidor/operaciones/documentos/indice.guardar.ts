@@ -39,6 +39,7 @@ export default defineEventHandler(async event => {
     statusMessage: 'Datos del documento inválidos'
   });
   const isTemplate = rawMetadata.uso === 'formato';
+  if (isTemplate && currentUser.rol !== 'SUPERADMIN') throw createError({statusCode:403,statusMessage:'Solo el superadministrador puede cargar formatos'});
   const template = chooseTemplate(format.code, rawMetadata.destino);
   if (isTemplate && !template) throw createError({ statusCode: 422,
     statusMessage: 'Puedes conservar el nombre original. Elige dónde usar este archivo: Registro de participantes (003-01), Resultados y firmas (003-03), Evaluación (003-04) o Constancia (003-05). No se cambió el formato vigente.' });

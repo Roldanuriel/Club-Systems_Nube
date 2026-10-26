@@ -26,12 +26,14 @@ export default defineEventHandler(async event => {
       statusCode: 409,
       statusMessage: 'No hay periodo activo'
     });
-    const [students] = await connection.execute<DatabaseRow[]>("SELECT * FROM alumnos WHERE numeroControl = ? AND estado_periodo = 'ACREDITADO' ORDER BY id DESC LIMIT 1", [value.numeroControl]);
+    const [students] = await connection.execute<DatabaseRow[]>("SELECT a.* FROM alumnos a JOIN periodos p ON p.id=a.periodo_id WHERE a.numeroControl = ? AND p.estado='CERRADO' AND (a.estado_periodo='ACREDITADO' OR EXISTS (SELECT 1 FROM autorizaciones_inscripcion au WHERE au.alumno_id=a.id AND au.periodo_id=?)) ORDER BY a.id DESC LIMIT 1", [value.numeroControl, periodId]);
     const student = students[0];
     if (!student) throw createError({
       statusCode: 404,
       statusMessage: 'Alumno no encontrado o no acreditado'
     });
+    const [deudas] = await connection.execute<any[]>('SELECT d.id FROM adeudos_material d JOIN alumnos a ON a.id=d.alumno_id WHERE a.numeroControl=? AND d.resuelto=FALSE',[value.numeroControl]);
+    if(deudas.length){const [autorizaciones]=await connection.execute<any[]>('SELECT id FROM autorizaciones_inscripcion WHERE alumno_id=? AND periodo_id=?',[student.id,periodId]);if(!autorizaciones.length)throw createError({statusCode:409,statusMessage:'El alumno tiene material pendiente; requiere autorización de inscripción'});}
     const [existing] = await connection.execute<DatabaseRow[]>('SELECT id FROM alumnos WHERE numeroControl = ? AND periodo_id = ? LIMIT 1', [value.numeroControl, periodId]);
     if (existing.length) throw createError({
       statusCode: 409,

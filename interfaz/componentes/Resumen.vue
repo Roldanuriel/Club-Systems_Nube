@@ -5,7 +5,7 @@
       <div class="col-12">
         <div class="card border-0 shadow-sm" :style="{ background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorEnd} 100%)` }">
           <div class="card-body text-white py-4">
-            <h2 class="mb-1">Bienvenido, {{ usuarioNombre }}</h2>
+            <h2 class="mb-1 text-white">Bienvenido, {{ usuarioNombre }}</h2>
             <p class="mb-0 opacity-75">{{ fechaActual }}</p>
           </div>
         </div>
@@ -93,9 +93,7 @@
       <div class="col-12 mt-2">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h5 class="text-muted mb-0">Clubes del Periodo</h5>
-          <button v-if="isSuperAdmin" class="btn btn-success" @click="abrirNuevoClub">
-            + Agregar club
-          </button>
+
         </div>
       </div>
 
@@ -206,46 +204,6 @@
       <!-- El gestor solo aporta los modales. La lista principal son las tarjetas de arriba. -->
       <ClubsR ref="gestorClubs" :clubs="clubs" :alumnos="alumnos" :can-manage="isSuperAdmin" :modal-only="true" @add-club="reenviarAgregar" @edit-club="reenviarEditar" @delete-club="reenviarEliminar" @refresh="$emit('refresh')" @log="$emit('log', $event)" @show-error="$emit('show-error', $event)" />
 
-      <!-- Acciones rápidas -->
-      <div class="col-12 mt-2">
-        <h5 class="text-muted mb-3">Acciones Rápidas</h5>
-      </div>
-
-      <div v-if="isSuperAdmin" class="col-md-3">
-        <button class="btn btn-outline-primary w-100 py-3" @click="$emit('navigate', 'Gestion')">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
-            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-          </svg>
-          Gestionar Usuarios
-        </button>
-      </div>
-
-      <div class="col-md-3">
-        <button class="btn btn-outline-success w-100 py-3" @click="volverAClubs">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
-          Clubs
-        </button>
-      </div>
-
-      <div class="col-md-3">
-        <button class="btn btn-outline-info w-100 py-3" @click="$emit('navigate', 'Evaluaciones')">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-          </svg>
-          Evaluaciones
-        </button>
-      </div>
-
-      <div class="col-md-3">
-        <button class="btn btn-outline-warning w-100 py-3" @click="$emit('navigate', 'AlumnosSR')">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
-            <path d="M15 4c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4v2h2v-2h9v2h2V6c0-1.1-.9-2-2-2zm-4 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm5-10c0-1.66 1.34-3 3-3s3 1.34 3 3v1h-6V4z"/>
-          </svg>
-          Alumnos sin Club
-        </button>
-      </div>
     </div>
   </div>
 </template>

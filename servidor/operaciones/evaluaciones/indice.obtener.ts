@@ -10,18 +10,8 @@ export default defineEventHandler(async event => {
     statusCode: 422,
     statusMessage: 'Nombre del estudiante y club son requeridos'
   });
-  const [databaseRows] = await db().execute<DatabaseRow[]>(`SELECT a.id, COUNT(CASE WHEN asi.presente = 0 THEN 1 END) faltas
-       FROM alumnos a JOIN clubs c ON c.id = a.id_club LEFT JOIN asistencias asi ON asi.id_alumno = a.id
-      WHERE UPPER(TRIM(CONCAT_WS(' ', a.nombre, a.apellidoP, a.apellidoM))) = UPPER(?) AND UPPER(TRIM(c.nombre)) = UPPER(?)
-      GROUP BY a.id ORDER BY a.id DESC LIMIT 1`, [student, club]);
-  if (!databaseRows[0]) return {};
-  const faltas = Number(databaseRows[0].faltas);
-  const score = faltas <= 1 ? 5 : faltas === 2 ? 3 : 2;
-  return {
-    id_alumno: Number(databaseRows[0].id),
-    faltas,
-    desempeno: score === 5 ? 'EXCELENTE' : score === 3 ? 'BUENO' : 'REGULAR',
-    nivel_desempeno: score,
-    valor_numerico: score
-  };
+  const [databaseRows] = await db().execute<DatabaseRow[]>(`SELECT e.* FROM evaluaciones e JOIN alumnos a ON a.id=e.alumno_id JOIN clubs c ON c.id=a.id_club
+    WHERE UPPER(TRIM(CONCAT_WS(' ',a.nombre,a.apellidoP,a.apellidoM)))=UPPER(?) AND UPPER(TRIM(c.nombre))=UPPER(?) AND e.periodo_id=a.periodo_id AND e.escala_version=2
+    ORDER BY a.id DESC,e.fecha_registro DESC,e.id DESC LIMIT 1`,[student,club]);
+  return databaseRows[0] || {};
 });

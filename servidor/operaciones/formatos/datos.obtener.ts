@@ -1,4 +1,5 @@
 import { requireUser } from '../../utilidades/autenticacion';
+import { obtenerAcreditacion } from '../../utilidades/acreditacion';
 import { db } from '../../utilidades/conexion';
 import { positiveId } from '../../utilidades/validacion';
 export default defineEventHandler(async event => {
@@ -21,6 +22,9 @@ export default defineEventHandler(async event => {
     WHERE a.id_club=? AND a.periodo_id=? ORDER BY a.apellidoP, a.apellidoM, a.nombre`, [clubId, periods[0].id]);
   const [monitors] = await db().execute<any[]>(`SELECT TRIM(CONCAT_WS(' ', nombre, apellidoP, apellidoM)) nombre
     FROM usuarios WHERE club_asignado=? AND tipo='MONITOR' ORDER BY id`, [clubId]);
-  return { status: 'success', data: { club: clubs[0], periodo: periods[0], alumnos: students,
+  const acreditados=await obtenerAcreditacion(undefined,Number(periods[0].id));
+  for(const student of students) { const estado=acreditados.find(a=>Number(a.id)===Number(student.id)); student.consecutivas=estado?.consecutivas; student.apto=estado?.apto; student.motivo=estado?.motivo; }
+  const [configRows]=await db().execute<any[]>('SELECT valor FROM app_config WHERE clave=?',['evaluacion_config_'+periods[0].id]);
+  return { status: 'success', data: { evaluacion_config:configRows[0]?JSON.parse(configRows[0].valor):null, club: clubs[0], periodo: periods[0], alumnos: students,
     promotor: monitors.length === 1 ? monitors[0].nombre : '' } };
 });

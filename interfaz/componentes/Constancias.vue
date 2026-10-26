@@ -1,209 +1,15 @@
 <template>
   <div :class="{ 'constancias-generator': generatorOnly }">
-    <h3 class="text-primary mb-4">Constancias</h3>
+    <h3 class="text-primary mb-4">Emisión de constancias</h3>
+    <p>Se requiere evaluación aprobada y no tener tres faltas consecutivas. Las asistencias pendientes deben capturarse antes de emitir.</p>
+    <p v-if="errorEmision" class="alert alert-danger" role="alert">{{ errorEmision }}</p>
 
-    <!-- Búsqueda de alumnos -->
-    <div class="mb-4">
-      <input
-        v-model="searchQuery"
-        type="text"
-        class="form-control"
-        placeholder="Buscar alumno por nombre..."
-        @input="onSearchInput"
-      />
-      <ul v-if="searchSuggestions.length" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;">
-        <li
-          v-for="suggestion in searchSuggestions"
-          :key="suggestion.id"
-          class="list-group-item list-group-item-action"
-          @click="selectSuggestion(suggestion)"
-        >
-          {{ suggestion.nombre }} {{ suggestion.apellidoP }} {{ suggestion.apellidoM || '' }} - {{ suggestion.club }}
-        </li>
-      </ul>
-      <div v-if="searchQuery && !searchSuggestions.length && searchQuery.length > 2" class="text-muted mt-2">
-        No se encontraron alumnos con ese nombre.
-      </div>
-    </div>
-
-    <!-- Detalle de alumno seleccionado via búsqueda -->
-    <div v-if="selectedStudent" class="card mb-4 border-info shadow-sm">
-      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">Detalles del Alumno: {{ selectedStudent.nombre }} {{ selectedStudent.apellidoP }} {{ selectedStudent.apellidoM }}</h6>
-        <button class="btn btn-sm btn-light" @click="selectedStudent = null">Cerrar Detalle</button>
-      </div>
-      <div class="card-body">
-        <div class="row mb-3">
-          <div class="col-md-6 mb-2">
-            <p class="mb-1"><strong>Club:</strong> {{ selectedStudent.club }}</p>
-            <p class="mb-1"><strong>Número de Control:</strong> {{ selectedStudent.control || selectedStudent.numeroControl || 'N/A' }}</p>
-          </div>
-          <div class="col-md-6 mb-2">
-            <p class="mb-1"><strong>Monitor:</strong> {{ getMonitorNameForStudent(selectedStudent) }}</p>
-            <p class="mb-1"><strong>Estatus:</strong> 
-              <span :class="isAcreditado(selectedStudent) ? 'text-success' : 'text-danger'">
-                {{ isAcreditado(selectedStudent) ? "Acreditado" : "No acreditado" }}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered align-middle">
-            <thead class="table-light text-center">
-              <tr>
-                <th v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" style="font-size: 0.8rem">
-                  {{ fecha }}
-                </th>
-                <th style="font-size: 0.8rem">Faltas</th>
-                <th style="font-size: 0.8rem">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" class="text-center">
-                  <span v-if="selectedStudent.asistencias?.[fecha]" class="text-success fw-bold">✔</span>
-                  <span v-else class="text-danger fw-bold">✖</span>
-                </td>
-                <td class="text-center">{{ selectedStudent.faltas }}</td>
-                <td class="text-center">
-                  <button
-                    class="btn btn-sm btn-info"
-                    :disabled="!isAcreditado(selectedStudent)"
-                    @click="descargarConstancia(selectedStudent, selectedStudent.club, periodoActual)"
-                  >
-                    Descargar
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div
-      v-for="(club, index) in sortedClubs"
-      :key="club.nombre + index"
-      class="card mb-4 shadow-sm"
-    >
-      <div
-        :class="['card-header', 'text-white', 'd-flex', 'justify-content-between', 'align-items-center', club.tipo === 'DEPORTIVO' ? 'bg-primary' : 'bg-secondary']"
-      >
-        <div>
-          {{ club.nombre }} — Monitores:
-          <span v-if="club.monitores && club.monitores.length">
-            {{ club.monitores.map((m) => formatMonitorNombre(m)).join(", ") }}
-          </span>
-          <span v-else> Sin asignar </span>
-        </div>
-        <div class="d-flex gap-2">
-          <button
-            class="btn btn-sm btn-light"
-            @click="toggleClubCollapse(club.id)"
-          >
-            {{ collapsedClubs[club.id] ? 'Expandir' : 'Colapsar' }}
-          </button>
-          <button
-            class="btn btn-sm btn-light"
-            @click="openConstanciaPreview(club)"
-          >
-            Vista previa
-          </button>
-          <button
-            class="btn btn-sm btn-success"
-            @click="descargarTodasConstanciasClub(club.nombre)"
-          >
-            Descargar PDFs
-          </button>
-        </div>
-      </div>
-      <div v-show="!collapsedClubs[club.id]" class="card-body">
-        <p>{{ club.descripcion }}</p>
-
-        <div
-          v-if="filteredAlumnos(club.nombre).length === 0"
-          class="text-muted"
-        >
-          No hay alumnos en este club.
-        </div>
-
-        <table v-else class="table table-bordered align-middle">
-          <thead class="table-secondary">
-            <tr>
-              <th>Alumno</th>
-              <th
-                v-for="fecha in fechasData.length ? fechasData : fechas"
-                :key="fecha"
-              >
-                {{ fecha }}
-              </th>
-              <th>Constancia</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(alumno, i) in filteredAlumnos(club.nombre)"
-              :key="alumno.id || alumno.control || 'c-' + i"
-            >
-              <td>
-                {{ alumno.nombre }} {{ alumno.apellidoP }}
-                {{ alumno.apellidoM }}
-              </td>
-              <td
-                v-for="fecha in fechasData.length ? fechasData : fechas"
-                :key="fecha"
-                class="text-center"
-              >
-                <span
-                  v-if="alumno.asistencias?.[fecha]"
-                  class="text-success fw-bold"
-                  style="font-size: 1.5rem"
-                  >✔</span
-                >
-                <span
-                  v-else
-                  class="text-danger fw-bold"
-                  style="font-size: 1.5rem"
-                  >✖</span
-                >
-              </td>
-              <td>
-                <span
-                  :class="alumno.faltas <= 2 ? 'text-success' : 'text-danger'"
-                >
-                  {{ alumno.faltas <= 2 ? "Sí" : "No" }}
-                </span>
-              </td>
-              <td>
-                <button
-                  class="btn btn-sm btn-outline-info"
-                  :disabled="!isAcreditado(alumno)"
-                  :title="
-                    !isAcreditado(alumno)
-                      ? 'No acreditado: supera el límite de faltas'
-                      : 'Descargar constancia'
-                  "
-                  @click="
-                    descargarConstancia(alumno, club.nombre, periodoActual)
-                  "
-                >
-                  Descargar
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <button class="btn btn-outline-primary" @click="downloadAll">
-      Descargar todas las constancias
-    </button>
-
+    <label>Periodo escolar<select v-model="periodoSeleccionado" class="form-select mb-3"><option value="">Todos los periodos</option><option v-for="p in periodosDisponibles" :key="p.id" :value="p.id">{{p.nombre}}</option></select></label>
+    <div class="d-flex gap-3 align-items-center mb-4"><button class="btn btn-primary" :disabled="exportando" @click="downloadAll">{{ exportando ? 'Generando archivos…' : 'Descargar todas las constancias (ZIP)' }}</button><span v-if="exportando" role="status">Espera a que termine la descarga.</span></div>
+    <div class="row g-3"><div v-for="club in sortedClubs" :key="club.id" class="col-md-6 col-xl-4"><article class="card h-100 border-0 shadow-sm"><div class="card-body"><h5>{{ club.nombre }}</h5><p class="text-muted">{{ filteredAlumnos(club.nombre).filter(a=>isAcreditado(a)).length }} constancias disponibles</p><button class="btn btn-outline-primary" :disabled="exportando || !filteredAlumnos(club.nombre).some(a=>isAcreditado(a))" @click="descargarTodasConstanciasClub(club.nombre)">Descargar club (ZIP)</button><details class="mt-3"><summary>Descargar una constancia</summary><div v-for="a in filteredAlumnos(club.nombre).filter(a=>isAcreditado(a))" :key="a.id" class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom"><span>{{ a.nombre }} {{ a.apellidoP }} · {{ a.numeroControl || a.control }}</span><button class="btn btn-sm btn-outline-primary" :disabled="exportando" @click="descargarIndividual(a,club.nombre)">PDF</button></div></details></div></article></div></div>
+    <p v-if="!sortedClubs.length" class="text-muted">No hay clubes disponibles.</p>
     <!-- Modal/Vista previa imprimible -->
-    <div v-if="previewData" class="print-preview" :class="{ 'generator-only-preview': generatorOnly }">
+    <div v-if="previewData" class="print-preview generator-only-preview">
       <div class="preview-documento">
         <div class="constancia A4" id="constancia">
 
@@ -271,7 +77,8 @@
               PRESENTE
             </p>
             <div class="espacios"></div>
-            <p class="texto justificado">
+            <p v-if="documentoConfig.constancia_texto" class="texto justificado" style="white-space:pre-wrap">{{ textoConfigurado() }}</p>
+            <p v-else class="texto justificado">
               La que suscribe {{ getNombreJefe('jefe_actividades') || '__________________________' }}, {{ tituloFirma('jefe_actividades') }} del Departamento de Actividades Extraescolares, por este medio se permite hacer de su
               conocimiento que la estudiante
               <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con número de control <strong>{{ previewData.numeroControl }}</strong> de la
@@ -288,7 +95,7 @@
             <div class="espacios"></div>
 
             <p class="lugar-fecha">
-              Se extiende la presente en la Heroica ciudad de Tlaxiaco a los
+              Se extiende la presente en {{ documentoConfig.constancia_lugar || "la Heroica ciudad de Tlaxiaco" }} a los
               {{ fechaHoy.dia }} días del mes de {{ fechaHoy.mes }} de
               {{ fechaHoy.anio }}.
             </p>
@@ -369,114 +176,18 @@
         </div>
       </div>
 
-      <div v-if="!generatorOnly" class="acciones-preview p-3" style="width: 300px; background: #f8f9fa; border-left: 1px solid #dee2e6;">
-        <h5 class="mb-3">Configuración de Firmas</h5>
-        
-        <div class="mb-3">
-          <label class="form-label small fw-bold">Jefa de Servicios Escolares</label>
-          <input 
-            v-model="jefesSeleccionados.jefa_servicios_nombre" 
-            class="form-control form-control-sm" 
-            placeholder="Nombre de la jefa"
-            maxlength="60"
-            @input="sanitizeNombreInput('jefa_servicios_nombre')"
-            @change="guardarPreferenciaManual('jefa_servicios')"
-          />
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label small fw-bold">Jefe/Jefa de Actividades</label>
-          <input
-            v-model="jefesSeleccionados.jefe_actividades_nombre"
-            class="form-control form-control-sm"
-            placeholder="Nombre completo"
-            maxlength="60"
-            @input="sanitizeNombreInput('jefe_actividades_nombre')"
-            @change="guardarPreferenciaManual('jefe_actividades')"
-          />
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label small fw-bold">Jefe/Jefa de Promoción</label>
-          <input
-            v-model="jefesSeleccionados.jefe_promocion_nombre"
-            class="form-control form-control-sm"
-            placeholder="Nombre completo"
-            maxlength="60"
-            @input="sanitizeNombreInput('jefe_promocion_nombre')"
-            @change="guardarPreferenciaManual('jefe_promocion')"
-          />
-        </div>
-
-        <hr>
-
-        <h5 class="mb-3">Editar Constancia</h5>
-        <div class="campos-editar">
-          <div class="campo">
-            <label>Período:</label>
-            <div class="d-flex gap-2">
-              <select v-model="previewData.mesInicio" class="form-select form-select-sm">
-                <option value="Enero">Enero</option>
-                <option value="Febrero">Febrero</option>
-                <option value="Marzo">Marzo</option>
-                <option value="Abril">Abril</option>
-                <option value="Mayo">Mayo</option>
-                <option value="Junio">Junio</option>
-                <option value="Julio">Julio</option>
-                <option value="Agosto">Agosto</option>
-                <option value="Septiembre">Septiembre</option>
-                <option value="Octubre">Octubre</option>
-                <option value="Noviembre">Noviembre</option>
-                <option value="Diciembre">Diciembre</option>
-              </select>
-              <span class="align-self-center">-</span>
-              <select v-model="previewData.mesFin" class="form-select form-select-sm">
-                <option value="Enero">Enero</option>
-                <option value="Febrero">Febrero</option>
-                <option value="Marzo">Marzo</option>
-                <option value="Abril">Abril</option>
-                <option value="Mayo">Mayo</option>
-                <option value="Junio">Junio</option>
-                <option value="Julio">Julio</option>
-                <option value="Agosto">Agosto</option>
-                <option value="Septiembre">Septiembre</option>
-                <option value="Octubre">Octubre</option>
-                <option value="Noviembre">Noviembre</option>
-                <option value="Diciembre">Diciembre</option>
-              </select>
-              <input
-                v-model="previewData.anioPeriodo"
-                type="number"
-                min="2020"
-                max="2030"
-                class="form-control form-control-sm"
-                style="width: 100px"
-              />
-            </div>
-          </div>
-        </div>
-        <div class="botones-acciones mt-3">
-          <button
-            class="btn btn-secondary w-100 mb-2"
-            @click="previewData = null"
-          >
-            Cerrar
-          </button>
-          <button class="btn btn-primary w-100" @click="generarPDF">
-            Descargar PDF
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script>
+import api from "../servicios/cliente-http";
 import { getAsistenciasPorClub, getEvaluacion, getFirmas, saveConfig } from "../servicios/api";
 import JSZip from 'jszip';
 export default {
   name: "Constancias",
   props: {
+    canManage: Boolean,
     clubs: {
       type: Array,
       default: () => []
@@ -505,6 +216,12 @@ export default {
   data() {
     return {
       previewData: null,
+      acreditacion: {},
+      documentoConfig: {},
+      periodoSeleccionado: "",
+      periodosDisponibles: [],
+      exportando: false,
+      errorEmision: "",
       periodoActual: this.getPeriodoActual(),
       alumnosPorClub: {},
       // Objeto que almacena alumnos por club_id
@@ -548,7 +265,7 @@ export default {
       return this.usuarios.filter(u => u.tipo && u.tipo.toString().toUpperCase() === 'OFICINA');
     },
     fechaHoy() {
-      const ahora = new Date();
+      const ahora = this.documentoConfig.constancia_fecha ? new Date(this.documentoConfig.constancia_fecha+"T12:00:00") : new Date();
       const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
       return {
         dia: ahora.getDate(),
@@ -558,6 +275,10 @@ export default {
     }
   },
   methods: {
+    textoConfigurado() {
+      const d=this.previewData || {}; const valores={nombre:d.estudianteNombre,control:d.numeroControl,carrera:d.carrera,club:d.club,desempeno:d.desempeno,valor:d.valorNumerico,periodo:[d.mesInicio,'-',d.mesFin,d.anioPeriodo].join(' ')};
+      return String(this.documentoConfig.constancia_texto || '').replace(/\{(\w+)\}/g,(m,k)=>valores[k] ?? m);
+    },
     formatMonitorNombre(monitor) {
       // Acepta objeto o string y devuelve "PrimerNombre PrimerApellido"
       if (!monitor) return "";
@@ -616,93 +337,41 @@ export default {
     },
     async loadAsistenciasPorClubs() {
       try {
-        // Cargar asistencias para cada club
-        for (const club of this.clubs || []) {
-          if (club.id) {
-            try {
-              const data = await getAsistenciasPorClub(club.id);
-              this.alumnosPorClub[club.id] = Array.isArray(data.alumnos) ? data.alumnos : [];
-
-              // Agregar fechas únicas
-              if (Array.isArray(data.fechas)) {
-                this.fechasData = [...new Set([...this.fechasData, ...data.fechas])].sort();
-              }
-
-              // Mapear asistencias
-              const asist = data.asistencias || {};
-              this.alumnosPorClub[club.id] = (this.alumnosPorClub[club.id] || []).map(al => {
-                const map = {
-                  ...(asist[al.id] || {})
-                };
-                const faltas = Object.values(map).filter(v => v === false).length;
-                return {
-                  ...al,
-                  asistencias: map,
-                  faltas,
-                  club: club.nombre
-                };
-              });
-            } catch (e) {
-              this.alumnosPorClub[club.id] = [];
-            }
-          }
+        await this.actualizarAcreditacion();
+        this.alumnosPorClub={};this.fechasData=[];
+        for(const alumno of Object.values(this.acreditacion)) {
+          (this.alumnosPorClub[alumno.id_club] ||= []).push(alumno);
+          this.fechasData=[...new Set([...this.fechasData,...alumno.fechas])].sort();
         }
-      } catch (e) {
-        // Silencioso en producción
-      }
+      } catch(e) { this.errorEmision=e.response?.data?.statusMessage || e.message; }
     },
     filteredAlumnos(clubName) {
-      // Buscar el club por nombre
-      const club = (this.sortedClubs || []).find(c => c.nombre === clubName);
-
-      // Si tenemos datos de BD para este club, usarlos
-      let alumnos = [];
-      const alumnosBD = club && club.id ? this.alumnosPorClub[club.id] : null;
-      if (Array.isArray(alumnosBD) && alumnosBD.length > 0) {
-        alumnos = alumnosBD;
-      } else {
-        // Fallback a props por id de club o por nombre de club
-        const clubId = club?.id ? Number(club.id) : null;
-        alumnos = (this.alumnos || []).filter(a => {
-          const aClubId = Number(a.clubId ?? a.club_id ?? a.id_club ?? 0);
-          if (clubId && aClubId && aClubId === clubId) return true;
-          return a.club === clubName;
-        });
-      }
-
-      // Filtrar por búsqueda si hay query
-      if (this.searchQuery && this.searchQuery.length >= 3) {
-        const query = this.searchQuery.toLowerCase();
-        alumnos = alumnos.filter(alumno => `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.toLowerCase().includes(query));
-      }
-      return alumnos;
+      const club=this.clubs.find(c=>c.nombre===clubName);
+      return (this.alumnosPorClub[club?.id] || []).filter(a=>!this.periodoSeleccionado || Number(a.periodo_id)===Number(this.periodoSeleccionado));
     },
-    downloadAll() {
-      const rows = [];
-      for (const club of this.clubs) {
-        const alumnos = this.filteredAlumnos(club.nombre);
-        for (const a of alumnos) {
-          if (!this.isAcreditado(a)) continue; // solo acreditados
-          rows.push([club.nombre, a.nombre + " " + a.apellidoP + " " + (a.apellidoM || ""), a.control, a.faltas]);
+    async descargarIndividual(alumno,club) {
+      if(this.exportando)return;this.exportando=true;this.errorEmision='';
+      try{await this.descargarConstancia(alumno,club,this.periodoActual);const blob=await this.generarPDFBlob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Constancia_'+alumno.id+'.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){this.errorEmision=e.message;}finally{this.exportando=false;this.previewData=null;}
+    },
+    async downloadAll() {
+      if (this.exportando) return;
+      this.exportando=true; this.errorEmision='';
+      try {
+        await this.actualizarAcreditacion();
+        const zip=new JSZip(); let cantidad=0;
+        for(const club of this.clubs) {
+          for(const alumno of this.filteredAlumnos(club.nombre).filter(a=>this.isAcreditado(a))) {
+            await this.descargarConstancia(alumno,club.nombre,this.periodoActual);
+            const pdf=await this.generarPDFBlob();
+            const carpeta=String(club.nombre).replace(/[^\p{L}\p{N} _-]/gu,'_');
+            zip.folder(carpeta).file('Constancia_'+alumno.id+'_'+(alumno.numeroControl || alumno.control)+'.pdf',pdf); cantidad++;
+          }
         }
-      }
-      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-      const blob = new Blob([csv], {
-        type: "text/csv;charset=utf-8;"
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "constancias.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      this.$emit("log", {
-        usuario: "Usuario Oficina",
-        accion: "Exportar",
-        tipo: "constancias",
-        descripcion: "Descarga de constancias (solo acreditados)"
-      });
+        if(!cantidad) throw new Error('No hay alumnos que cumplan los requisitos.');
+        const url=URL.createObjectURL(await zip.generateAsync({type:'blob'}));
+        const link=document.createElement('a'); link.href=url;link.download='Constancias_por_club.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      } catch(e) {this.errorEmision=e.message || 'No se pudo generar el archivo';}
+      finally {this.exportando=false;this.previewData=null;}
     },
     desempenoValor(desempeno) {
       const mapa = {
@@ -744,11 +413,13 @@ export default {
       const nombre = typeof club === 'string' ? club : club?.nombre || "";
       return this.isCulturalName(nombre) ? "CULTURAL" : "DEPORTIVA";
     },
-    // Regla de acreditación: faltas <= 2 (ajustable)
-    isAcreditado(alumno) {
-      const faltas = Number(alumno?.faltas ?? 0);
-      return Number.isFinite(faltas) ? faltas <= 2 : false;
+    async actualizarAcreditacion() {
+      this.periodosDisponibles=(await api.get("/periodos")).data.data;
+      this.acreditacion = {};
+      const {data} = await api.get('/constancias');
+      this.acreditacion = Object.fromEntries(data.data.map(a => [a.id,a]));
     },
+    isAcreditado(alumno) { return this.acreditacion[alumno?.id]?.apto === true; },
     toggleClubCollapse(clubId) {
       this.collapsedClubs[clubId] = !this.collapsedClubs[clubId];
     },
@@ -790,6 +461,7 @@ export default {
       return "Sin asignar";
     },
     openConstanciaPreview(club) {
+      if (!this.canManage) return;
       const periodo = this.getPeriodoActual();
       this.previewData = {
         estudianteNombre: "NOMBRE DEL ESTUDIANTE",
@@ -810,28 +482,14 @@ export default {
       };
     },
     async descargarConstancia(alumno, clubNombre, periodoActual) {
-      // Construir datos de la constancia
-      const periodo = this.getPeriodoActual();
-      let desempeno = '';
-      let valorNumerico = null;
-      try {
-        const nombreFull = `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim();
-        const evalData = await getEvaluacion({
-          nombre_estudiante: nombreFull,
-          nombre_club: alumno.club || clubNombre || ''
-        });
-        if (evalData) {
-          const nivel = parseInt(evalData.nivel_desempeno);
-          if (nivel === 5) desempeno = 'EXCELENTE';else if (nivel === 4) desempeno = 'NOTABLE';else if (nivel === 3) desempeno = 'BUENO';else if (nivel === 2) desempeno = 'SUFICIENTE';else desempeno = 'INSUFICIENTE';
-          valorNumerico = parseInt(evalData.valor_numerico);
-        }
-      } catch (e) {
-        // Silencioso en producción
-      }
-      if (!desempeno) {
-        // Fallback: calcular por faltas
-        desempeno = (alumno.desempeno || (alumno.faltas <= 1 ? 'EXCELENTE' : alumno.faltas === 2 ? 'BUENO' : 'REGULAR')).toString();
-      }
+      await this.loadCargos();
+      await this.actualizarAcreditacion();
+      if (!this.isAcreditado(alumno)) { this.errorEmision = this.acreditacion[alumno.id]?.motivo || "No se pudo verificar la acreditación"; throw new Error(this.errorEmision); }
+      const validado=this.acreditacion[alumno.id];
+      const inicio=String(validado.fecha_inicio).slice(0,10);
+      const periodo={mesInicio:inicio.slice(5,7)<='06'?'Enero':'Agosto',mesFin:inicio.slice(5,7)<='06'?'Junio':'Diciembre',anioPeriodo:inicio.slice(0,4)};
+      const desempeno=['INSUFICIENTE','SUFICIENTE','BUENO','NOTABLE','EXCELENTE'][Number(validado.nivel_desempeno)];
+      const valorNumerico=Number(validado.valor_numerico);
       const data = {
         estudianteNombre: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
         numeroControl: alumno.numeroControl || alumno.control || 'SIN CONTROL',
@@ -855,11 +513,12 @@ export default {
       club,
       periodo
     }) {
+      await this.loadCargos();
       const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
       const inicio = new Date(`${String(periodo?.fecha_inicio || '').slice(0, 10)}T00:00:00`);
       const fin = new Date(`${String(periodo?.fecha_fin || '').slice(0, 10)}T00:00:00`);
       const faltas = Number(alumno?.faltas ?? 0);
-      const desempeno = alumno?.desempeno || (faltas <= 1 ? 'EXCELENTE' : faltas === 2 ? 'BUENO' : 'SUFICIENTE');
+      const desempeno = ['INSUFICIENTE','SUFICIENTE','BUENO','NOTABLE','EXCELENTE'][Number(alumno.nivel_desempeno)];
       this.previewData = {
         estudianteNombre: `${alumno?.nombre || ''} ${alumno?.apellidoP || ''} ${alumno?.apellidoM || ''}`.replace(/\s+/g, ' ').trim(),
         numeroControl: alumno?.numeroControl || alumno?.control || 'SIN CONTROL',
@@ -995,6 +654,9 @@ export default {
       return (v == null ? "" : String(v)).toUpperCase();
     },
     async descargarTodasConstanciasClub(clubNombre) {
+      if(this.exportando)return;this.exportando=true;this.errorEmision="";
+      try {
+      await this.actualizarAcreditacion();
       const alumnosAcreditados = this.filteredAlumnos(clubNombre).filter(alumno => this.isAcreditado(alumno));
       if (!alumnosAcreditados.length) {
         alert(`No hay alumnos acreditados en el club ${clubNombre}`);
@@ -1028,6 +690,7 @@ export default {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      } catch(e){this.errorEmision=e.message || "No se pudo descargar el club";} finally {this.exportando=false;this.previewData=null;}
     },
     printStyles() {
       return `
@@ -1101,6 +764,7 @@ export default {
       return this.inferGenero(nombre) === 'F' ? 'JEFA' : 'JEFE';
     },
     async guardarPreferenciaManual(cargo) {
+      if (!this.canManage) return;
       this.sanitizeNombreInput(cargo + '_nombre');
       const valor = String(this.jefesSeleccionados[cargo + '_nombre'] || '').replace(/\s+/g, ' ').trim();
       this.jefesSeleccionados[cargo + '_nombre'] = valor;
@@ -1112,6 +776,8 @@ export default {
     },
     async loadCargos() {
       try {
+        const config = (await api.get("/config")).data;
+        this.documentoConfig = Object.fromEntries(config.data.map(v=>[v.clave,v.valor]));
         const firmas = await getFirmas();
         if (firmas.jefe_actividades) {
           this.jefesSeleccionados.jefe_actividades = firmas.jefe_actividades.id || '';

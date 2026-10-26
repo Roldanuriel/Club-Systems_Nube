@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="modern-records students-page">
     <h3>Alumnos registrados</h3>
 
 <div class="student-search">

@@ -7,7 +7,7 @@ const fullName = student => [student.apellidoP, student.apellidoM, student.nombr
 export function resultForStudent(student) {
   if (!student.evaluacion_id) return 'PENDIENTE DE EVALUACIÓN';
   // Conservar la regla de asistencia del programa además de la evaluación del monitor.
-  return Number(student.faltas) >= 3 || Number(student.valor_numerico) < 1 ? 'NO ACREDITADO' : 'ACREDITADO';
+  return Number(student.consecutivas) >= 3 || Number(student.valor_numerico) < 1 ? 'NO ACREDITADO' : 'ACREDITADO';
 }
 
 export function renderOfficialFormat(code, data, details, studentId) {
@@ -27,7 +27,7 @@ export function renderOfficialFormat(code, data, details, studentId) {
       <p>Nombre del estudiante: <b>${escape(fullName(student))}</b></p><p>Actividad Cultural y/o Deportiva: ${escape(data.club.nombre)}</p>
       <p>Periodo de realización: ${date(data.periodo.fecha_inicio)} al ${date(data.periodo.fecha_fin)}</p>
       <table><thead><tr><th>No.</th><th>Criterios a evaluar</th>${performanceNames.map(name => `<th>${name}</th>`).join('')}</tr></thead><tbody>
-      ${evaluationCriteria.map((criterion, index) => `<tr><td>${index + 1}</td><td>${escape(criterion)}</td>${performanceNames.map((_, level) => `<td class="mark">${Number(student['criterio_' + (index + 1)]) === level ? 'X' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      ${(data.evaluacion_config?.preguntas || evaluationCriteria).map((criterion, index) => `<tr><td>${index + 1}</td><td>${escape(criterion)}</td>${performanceNames.map((_, level) => `<td class="mark">${Number(student['criterio_' + (index + 1)]) === level ? 'X' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>
       <p class="observations">Observaciones: ${escape(student.observaciones)}</p>
       <p>Valor numérico de la actividad: <b>${Number(student.valor_numerico).toFixed(2)}</b></p>
       <p>Nivel de desempeño alcanzado: <b>${escape(performanceNames[Number(student.nivel_desempeno)])}</b></p>`;

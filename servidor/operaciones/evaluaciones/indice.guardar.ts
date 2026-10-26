@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { requireUser } from '../../utilidades/autenticacion';
-import { db } from '../../utilidades/conexion';
+import { db, transaction } from '../../utilidades/conexion';
 import { audit } from '../../utilidades/auditoria';
 import { calculateEvaluation } from '~~/interfaz/servicios/reglas-evaluacion.js';
 const score = z.number().int().min(0).max(4);
@@ -23,12 +23,16 @@ export default defineEventHandler(async event => {
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Alumno sin inscripción en el periodo activo' });
   if (user.rol === 'MONITOR' && Number(student.id_club) !== Number(user.club_asignado))
     throw createError({ statusCode: 403, statusMessage: 'Solo puedes evaluar alumnos de tu club' });
+  return transaction(async connection=>{
+  await connection.execute('SELECT id FROM periodos WHERE id=? FOR UPDATE',[student.periodo_id]);
+  const [configRows]=await connection.execute<any[]>('SELECT valor FROM app_config WHERE clave=?',['evaluacion_config_'+student.periodo_id]);
+  const evaluationConfig=configRows[0]?JSON.parse(configRows[0].valor):null;
   const scores = Array.from({ length: 7 }, (_, index) => value[`criterio_${index + 1}` as keyof typeof value] as number);
-  const result = calculateEvaluation(scores)!;
+  const result = calculateEvaluation(scores,evaluationConfig?.pesos || null)!;
   const [templates] = await db().execute<any[]>(`SELECT d.id FROM app_config c JOIN documentos d ON c.valor=CAST(d.id AS TEXT)
     WHERE c.clave='formato_evaluacion_activo' AND d.estado='ACTIVO' AND d.formato_codigo='003-04' AND d.concepto LIKE 'FORMATO_EVALUACION:%'`);
   // El servidor calcula el promedio; nunca acepta un total inventado por el navegador.
-  const [saved] = await db().execute<any>(`INSERT INTO evaluaciones
+  const [saved] = await connection.execute<any>(`INSERT INTO evaluaciones
     (alumno_id, periodo_id, escala_version, formato_documento_id, nombre_estudiante, nombre_club, periodo_realizacion,
     criterio_1, criterio_2, criterio_3, criterio_4, criterio_5, criterio_6, criterio_7, observaciones, valor_numerico, nivel_desempeno)
     VALUES (?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -36,5 +40,6 @@ export default defineEventHandler(async event => {
       student.fecha_inicio, ...scores, value.observaciones, result.valor_numerico, result.nivel_desempeno]);
   await audit(user.id, 'EVALUACION_CREADA', `Evaluación ${saved.insertId}: alumno ${student.id}`);
   return { status: 'success', id: saved.insertId, data: { ...result, alumno_id: student.id, periodo_id: student.periodo_id } };
+  });
 });
 

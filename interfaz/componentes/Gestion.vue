@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="modern-records users-page">
     <h3>Gestionar usuarios</h3>
 
     <div
