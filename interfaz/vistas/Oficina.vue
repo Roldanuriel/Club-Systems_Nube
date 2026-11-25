@@ -258,6 +258,7 @@
         :is="currentView" :key="currentView"
         :modo="{Pagos:'pagos',Adeudos:'adeudos',Solicitudes:'solicitudes'}[currentView]"
         :manage="isSuperAdmin"
+        :configuration-only="currentView === 'ConfiguracionDocumental'"
         :clubs="clubs"
         :alumnos="alumnos"
         :usuarios="usuarios"
@@ -299,9 +300,9 @@ import { resolveFotoUrl } from "../servicios/imagenes";
 
 import Clubes from '../componentes/Clubes.vue';
 import Listas from '../componentes/Listas.vue';
-import ConfiguracionDocumental from '../componentes/ConfiguracionDocumental.vue';
+
 import GestionEscolar from '../componentes/GestionEscolar.vue';
-import FormatosInstitucionales from '../componentes/ConfiguracionFormatos.vue';
+import ConfiguracionFormatos from '../componentes/ConfiguracionFormatos.vue';
 import Gestion from "../componentes/Gestion.vue";
 import Dashboard from "../componentes/Resumen.vue";
 import ClubsR from "../componentes/ClubsR.vue";
@@ -321,8 +322,8 @@ import { authService } from "../servicios/autenticacion";
 export default {
   name: "Oficina",
   components: {
-    Gestion, Clubes, Listas, ConfiguracionDocumental,
-    Pagos:GestionEscolar,Adeudos:GestionEscolar,Solicitudes:GestionEscolar,CargaFormatos:FormatosInstitucionales,
+    Gestion, Clubes, Listas, ConfiguracionDocumental: ConfiguracionFormatos,
+    Pagos:GestionEscolar,Adeudos:GestionEscolar,Solicitudes:GestionEscolar,CargaFormatos:ConfiguracionFormatos,
     Dashboard,
     ClubsR,
     AlumnosSR,

@@ -1,4 +1,7 @@
-param([switch]$NoBrowser)
+﻿param(
+  [switch]$NoBrowser,
+  [string]$AccessFile
+)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'funciones-piloto.ps1')
@@ -45,6 +48,28 @@ Acceso en esta computadora: $localUrl
 Acceso desde celulares y otras computadoras: $networkUrl
 Fecha de inicio: $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')
 "@
-$status | Set-Content -LiteralPath (Join-Path $projectRoot 'ACCESO-CLUB-SYSTEMS.txt') -Encoding UTF8
+$configuredAccessFile = $AccessFile
+if (-not $configuredAccessFile) {
+  $configuredAccessFile = $env:CLUB_SYSTEMS_ACCESS_FILE
+}
+if (-not $configuredAccessFile) {
+  $envFile = Join-Path $projectRoot '.env'
+  if (Test-Path -LiteralPath $envFile) {
+    foreach ($line in Get-Content -LiteralPath $envFile) {
+      if ($line -match '^\s*CLUB_SYSTEMS_ACCESS_FILE\s*=\s*(.*?)\s*$') {
+        $configuredAccessFile = $Matches[1].Trim().Trim('"').Trim("'")
+        break
+      }
+    }
+  }
+}
+if (-not $configuredAccessFile) {
+  $configuredAccessFile = Join-Path $projectRoot 'ACCESO-CLUB-SYSTEMS.txt'
+} elseif (-not [System.IO.Path]::IsPathRooted($configuredAccessFile)) {
+  $configuredAccessFile = Join-Path $projectRoot $configuredAccessFile
+}
+$accessDirectory = Split-Path -Parent $configuredAccessFile
+New-Item -ItemType Directory -Path $accessDirectory -Force | Out-Null
+$status | Set-Content -LiteralPath $configuredAccessFile -Encoding UTF8
 Write-Host $status -ForegroundColor Cyan
 if (-not $NoBrowser) { Start-Process $localUrl }

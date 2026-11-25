@@ -9,5 +9,3 @@ uploads/
 .postgresql/
 postgresql-*.zip
 .npm-cache/
-
-.env

@@ -61,3 +61,13 @@ Los archivos `.cmd` de la raíz y los accesos directos existentes siguen siendo 
 - `Restaurar-Club-Systems.cmd`: restaura únicamente cuando se solicita explícitamente.
 
 Para revisar el código: `npm test`, `npm run typecheck` y `npm run build`. La restauración y las migraciones de bases antiguas no forman parte de estas pruebas.
+
+## Limpieza del 25 de noviembre de 2026
+
+- La página `interfaz/paginas/monitor.vue` carga directamente el panel del monitor; se retiró la vista intermedia redundante.
+- Oficina reutiliza `ConfiguracionFormatos.vue` con una propiedad explícita para separar carga y configuración. No se duplican los formularios.
+- Se retiraron las imágenes sin uso `Yakuin.png` y `Registro_Club.png`.
+- Los cuatro SQL antiguos de MySQL de la raíz de `base-de-datos` se archivaron: no describen la base PostgreSQL actual. Se conservan las migraciones históricas y las herramientas de respaldo/restauración.
+- La copia recuperable está en `C:\Users\Uriel\Documents\Codex\ClubSystems_archivo_limpieza_2026-11-25`.
+- Las carpetas generadas y los datos locales se ocultan en el explorador de VS Code mediante `.vscode/settings.json`; siguen existiendo. No deben confundirse con código duplicado ni borrarse para limpiar el editor.
+- La sincronización de dos servidores sigue en desarrollo. Un resultado correcto de las pruebas generales no sustituye sus pruebas de integración ni una validación en los tres equipos.
