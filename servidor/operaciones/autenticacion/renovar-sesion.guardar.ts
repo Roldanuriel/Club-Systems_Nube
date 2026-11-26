@@ -20,6 +20,7 @@ export default defineEventHandler(async event => {
     status: 'success',
     token: access.value,
     remember_token: refresh.value,
+    server_time: access.serverNow.toISOString(),
     token_expires_at: access.expiresAt.toISOString()
   };
 });

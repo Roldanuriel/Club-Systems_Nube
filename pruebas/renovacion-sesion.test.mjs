@@ -58,3 +58,21 @@ test('una respuesta de error de la API también limpia la sesión', async () => 
   await assert.rejects(authService.refreshToken(), /Sesión vencida/);
   assert.equal(authService.getToken(), null);
 });
+
+test('el reloj del cliente adelantado no caduca una sesión nueva', async () => {
+  authService.clearAuth();
+  const serverNow = Date.now() - 8 * 60 * 60 * 1000;
+  fakeAxios.post = async () => ({ data: { status: 'success', token: 'clock-token', remember_token: 'clock-refresh', server_time: new Date(serverNow).toISOString(), token_expires_at: new Date(serverNow + 2 * 60 * 60 * 1000).toISOString() } });
+  await authService.login({usuario:'prueba',password:'prueba'});
+  assert.equal(authService.isAuthenticated(), true);
+  const remaining = Date.parse(authService.getTokenExpiry()) - Date.now();
+  assert.ok(remaining > 7190000 && remaining <= 7200000);
+});
+
+test('el reloj del cliente atrasado no prolonga una sesión vencida', () => {
+  authService.setToken('expired');
+  const serverNow = Date.now() + 8 * 60 * 60 * 1000;
+  authService.setTokenExpiry(new Date(serverNow - 1000).toISOString(),new Date(serverNow).toISOString());
+  assert.equal(authService.isAuthenticated(),false);
+  assert.equal(authService.getToken(),null);
+});

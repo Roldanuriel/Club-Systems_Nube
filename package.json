@@ -30,14 +30,16 @@
     },
     "files": [
       "desktop/**/*",
-      "package.json"
+      "package.json",
+      "!desktop/seed/**"
     ],
     "extraResources": [
       {
         "from": ".output",
         "to": ".output",
         "filter": [
-          "**/*"
+          "**/*",
+          "!.data/**"
         ]
       },
       {
@@ -51,6 +53,10 @@
       {
         "from": "herramientas/Permitir-Red-Privada.ps1",
         "to": "Permitir-Red-Privada.ps1"
+      },
+      {
+        "from": "herramientas/Vincular-Red.cmd",
+        "to": "Vincular-Red.cmd"
       }
     ],
     "win": {

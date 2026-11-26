@@ -25,7 +25,7 @@ async function renewSession() {
     }
     authService.setToken(session.token);
     if (session.csrf_token) authService.setCsrfToken(session.csrf_token);
-    if (session.token_expires_at) authService.setTokenExpiry(session.token_expires_at);
+    if (session.token_expires_at) authService.setTokenExpiry(session.token_expires_at, session.server_time);
     if (session.remember_token) authService.setRefreshToken(session.remember_token);
     return session.token;
   } catch (error) {
@@ -43,6 +43,7 @@ export const authService = {
         csrf_token,
         remember_token,
         token_expires_at,
+        server_time,
         ...userData
       } = response.data;
       authService.setToken(token);
@@ -52,7 +53,7 @@ export const authService = {
         authService.setRefreshToken(remember_token);
       }
       if (token_expires_at) {
-        authService.setTokenExpiry(token_expires_at);
+        authService.setTokenExpiry(token_expires_at, server_time);
       }
       return response.data;
     }
@@ -128,9 +129,13 @@ export const authService = {
     if (!isBrowser()) return null;
     return sessionStorage.getItem(STORAGE_KEYS.CSRF_TOKEN);
   },
-  setTokenExpiry: expiresAt => {
+  setTokenExpiry: (expiresAt, serverTime) => {
     if (!isBrowser()) return;
-    sessionStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRES_AT, expiresAt);
+    const deadline = Date.parse(expiresAt);
+    const serverNow = Date.parse(serverTime);
+    const localDeadline = Number.isFinite(serverNow) ? Date.now() + (deadline - serverNow) : deadline;
+    if (!Number.isFinite(localDeadline)) throw new Error('Fecha de sesión inválida');
+    sessionStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRES_AT, new Date(localDeadline).toISOString());
   },
   getTokenExpiry: () => {
     if (!isBrowser()) return null;
