@@ -10,23 +10,34 @@ const STORAGE_KEYS = {
 };
 let currentToken = null;
 let pendingRefresh = null;
+let pendingCurrentUser = null;
 const isBrowser = () => typeof window !== 'undefined' && typeof sessionStorage !== 'undefined';
 
 async function renewSession() {
   try {
+    const refreshToken = authService.getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('No hay token de renovación disponible');
+    }
     const response = await axios.post(`${BACKEND}/auth/refresh`, {
-      refresh_token: authService.getRefreshToken()
-    }, {
-      headers: { Authorization: `Bearer ${authService.getToken()}` }
+      refresh_token: refreshToken
     });
     const session = response.data;
-    if (session.status !== 'success') {
-      throw new Error(session.message || 'Error al renovar token');
+    if (session?.status !== 'success') {
+      throw new Error(session?.message || 'Error al renovar token');
     }
+    if (
+      typeof session.token !== 'string' || !session.token.trim() ||
+      typeof session.remember_token !== 'string' || !session.remember_token.trim() ||
+      typeof session.token_expires_at !== 'string' ||
+      !Number.isFinite(Date.parse(session.token_expires_at))
+    ) {
+      throw new Error('Respuesta inválida al renovar la sesión');
+    }
+    authService.setRefreshToken(session.remember_token);
     authService.setToken(session.token);
     if (session.csrf_token) authService.setCsrfToken(session.csrf_token);
-    if (session.token_expires_at) authService.setTokenExpiry(session.token_expires_at);
-    if (session.remember_token) authService.setRefreshToken(session.remember_token);
+    authService.setTokenExpiry(session.token_expires_at);
     return session.token;
   } catch (error) {
     authService.clearAuth();
@@ -36,6 +47,7 @@ async function renewSession() {
 
 export const authService = {
   login: async credentials => {
+    authService.clearAuth();
     const response = await axios.post(`${BACKEND}/auth/login`, credentials);
     if (response.data.status === 'success') {
       const {
@@ -88,17 +100,44 @@ export const authService = {
     if (!token) {
       return null;
     }
-    const response = await axios.get(`${BACKEND}/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    if (response.data.status === 'success' || response.data.data) {
-      const userData = response.data.data || response.data;
-      authService.setUserData(userData);
-      return userData;
+    if (!pendingCurrentUser) {
+      pendingCurrentUser = axios.get(`${BACKEND}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).catch(async error => {
+        if (error.response?.status !== 401) {
+          throw error;
+        }
+        await authService.refreshToken();
+        const renewedToken = authService.getToken();
+        if (!renewedToken) {
+          return null;
+        }
+        try {
+          return await axios.get(`${BACKEND}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${renewedToken}`
+            }
+          });
+        } catch (retryError) {
+          if (retryError.response?.status === 401) {
+            authService.clearAuth();
+          }
+          throw retryError;
+        }
+      }).then(response => {
+        if (response.data.status === 'success' || response.data.data) {
+          const userData = response.data.data || response.data;
+          authService.setUserData(userData);
+          return userData;
+        }
+        return null;
+      }).finally(() => {
+        pendingCurrentUser = null;
+      });
     }
-    return null;
+    return pendingCurrentUser;
   },
   setToken: token => {
     if (!isBrowser()) return;
@@ -171,15 +210,7 @@ export const authService = {
     return now >= expiryTime - bufferMinutes;
   },
   isAuthenticated: () => {
-    const token = authService.getToken();
-    if (!token) {
-      return false;
-    }
-    if (authService.isTokenExpired()) {
-      authService.clearAuth();
-      return false;
-    }
-    return true;
+    return Boolean(authService.getToken());
   },
   clearAuth: () => {
     currentToken = null;

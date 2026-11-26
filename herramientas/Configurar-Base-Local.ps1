@@ -1,8 +1,7 @@
-param([string]$Usuario='postgres',[string]$Base='club_systems')
+param([string]$Usuario='postgres',[string]$Base='SIAE')
 $ErrorActionPreference='Stop'
-$dir=Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Club Systems'
-New-Item -ItemType Directory -Path $dir -Force | Out-Null
-$file=Join-Path $dir '.env'
+$projectRoot=Split-Path -Parent $PSScriptRoot
+$file=Join-Path $projectRoot '.env'
 if(Test-Path -LiteralPath $file){Write-Host 'Ya existe la configuracion local. Se conserva sin cambios.';exit 0}
 $secret=Read-Host 'Contrasena de PostgreSQL de ESTA computadora' -AsSecureString
 $ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)

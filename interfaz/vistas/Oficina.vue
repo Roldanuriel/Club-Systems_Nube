@@ -457,15 +457,17 @@ export default {
             ...user,
             foto: user.foto || null
           };
+          return true;
         } else {
           this.cerrarSesion();
-          return;
+          return false;
         }
       } catch (error) {
-        if (error?.response?.status === 404) {
-          this.cerrarSesion();
-          return;
+        authService.clearAuth();
+        if (typeof this.$router !== 'undefined') {
+          await this.$router.replace('/');
         }
+        return false;
       }
     },
     setView(view) {
@@ -858,14 +860,12 @@ export default {
     this.checkMobile();
     window.addEventListener('resize', this.checkMobile);
 
-    // Esperar a que sessionStorage esté listo
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const usuarioId = sessionStorage.getItem("usuarioId");
-    if (!usuarioId) {
-      this.$router.push("/");
+    if (!authService.isAuthenticated()) {
+      await this.$router.replace("/");
       return;
     }
-    await this.cargarUsuarioActual();
+    const usuarioValido = await this.cargarUsuarioActual();
+    if (!usuarioValido) return;
     await Promise.all([this.loadClubs(), this.loadUsuarios()]);
     await this.loadAlumnos();
     await this.cargarPeriodoActivo();

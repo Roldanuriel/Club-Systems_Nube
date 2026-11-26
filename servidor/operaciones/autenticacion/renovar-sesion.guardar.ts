@@ -6,12 +6,12 @@ export default defineEventHandler(async event => {
   const refreshValue = body?.refresh_token;
   if (!refreshValue) throw createError({
     statusCode: 401,
-    statusMessage: 'Token de renovación requerido'
+    message: 'Token de renovación requerido'
   });
   const current = await validateToken(refreshValue, 'REFRESH');
   if (!current) throw createError({
     statusCode: 401,
-    statusMessage: 'Token de renovación inválido'
+    message: 'Token de renovación inválido'
   });
   await revokeToken(refreshValue, 'REFRESH');
   const access = await issueToken(current.user_id, 'SESSION', 2 * 60 * 60, event);
