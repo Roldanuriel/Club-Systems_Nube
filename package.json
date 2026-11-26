@@ -1,30 +1,104 @@
 {
-  "name": "app-vue-electron",
+  "name": "sirce-nuxt",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
-    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
-    "dev:vite": "vite",
-    "dev:electron": "cross-env NODE_ENV=development wait-on http://localhost:5173 && electron electron/main.js",
-    "build": "vite build && electron-builder"
+    "dev": "nuxt dev",
+    "electron": "electron .",
+    "db:start": "powershell -ExecutionPolicy Bypass -File herramientas/iniciar-postgres.ps1",
+    "dev:postgres": "powershell -ExecutionPolicy Bypass -File herramientas/iniciar-proyecto.ps1",
+    "pilot:install": "powershell -ExecutionPolicy Bypass -File herramientas/instalar-piloto.ps1",
+    "pilot:start": "powershell -ExecutionPolicy Bypass -File herramientas/iniciar-piloto.ps1",
+    "db:backup": "powershell -ExecutionPolicy Bypass -File herramientas/respaldar-base.ps1",
+    "build": "nuxt build",
+    "installer": "npm run build && electron-builder --win nsis --x64 --config.directories.output=release\\installer-build && powershell -NoProfile -ExecutionPolicy Bypass -File herramientas/copiar-instalador-escritorio.ps1",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "test": "node --test pruebas/*.test.mjs"
+  },
+  "build": {
+    "appId": "com.clubsystems.desktop",
+    "productName": "Club Systems",
+    "executableName": "ClubSystems",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "desktop/assets"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".output",
+        "to": ".output",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "herramientas/configurar-equipo-cliente.ps1",
+        "to": "configurar-equipo-cliente.ps1"
+      },
+      {
+        "from": "herramientas/Vincular-Equipo.ps1",
+        "to": "Vincular-Equipo.ps1"
+      },
+      {
+        "from": "herramientas/Permitir-Red-Privada.ps1",
+        "to": "Permitir-Red-Privada.ps1"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "desktop/assets/club-systems.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Club Systems",
+      "artifactName": "ClubSystems-Setup.${ext}"
+    }
   },
   "dependencies": {
     "axios": "^1.13.2",
+    "bcryptjs": "^3.0.2",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
-    "html2pdf.js": "^0.14.0",
     "jspdf": "^3.0.4",
+    "jszip": "^3.10.1",
+    "nuxt": "^4.0.0",
+    "pg": "^8.23.0",
     "vue": "^3.5.22",
-    "vue-router": "^4.6.3"
+    "vue-router": "5.3.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.1",
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.1.0",
-    "electron": "^39.1.0",
-    "electron-builder": "^26.0.12",
-    "vite": "^7.1.7",
-    "wait-on": "^9.0.1"
+    "@types/bootstrap": "^5.2.10",
+    "@types/pg": "^8.23.1",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "mysql2": "^3.15.3",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.1.4"
+  },
+  "allowScripts": {
+    "core-js@3.47.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
   }
 }

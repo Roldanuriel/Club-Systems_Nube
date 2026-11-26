@@ -1,0 +1,5 @@
+Club Systems - VERSION PILOTO
+Equipo servidor: DESKTOP-9JJP8NJ
+Acceso en esta computadora: http://127.0.0.1:3001/
+Acceso desde celulares y otras computadoras: http://192.168.137.28:3001/
+Fecha de inicio: 30/09/2026 09:44:40

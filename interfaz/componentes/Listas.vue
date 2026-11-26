@@ -1,0 +1,29 @@
+<template>
+<section class="modern-records lists-page">
+ <h3>Listas</h3>
+ <p class="text-muted">Consulta los alumnos por club y periodo escolar.</p>
+ <p v-if="error" class="alert alert-danger" role="alert">{{ error }}</p>
+ <div class="row g-3 mb-4">
+ <label class="col-md-4">Periodo<select v-model="periodo" class="form-select"><option value="">Todos los periodos</option><option v-for="p in periodos" :key="p.id" :value="String(p.id)">{{ p.nombre }}</option></select></label>
+ <label class="col-md-4">Club<select v-model="club" class="form-select"><option value="">Todos los clubes</option><option v-for="c in clubes" :key="c">{{ c }}</option></select></label>
+ <label class="col-md-4">Buscar alumno<input v-model="busqueda" class="form-control" placeholder="Nombre o número de control"></label>
+ </div>
+ <div class="d-flex justify-content-between align-items-center mb-3"><span role="status">{{ cargando ? 'Cargando listas…' : visibles.length+' alumnos' }}</span><button class="btn btn-primary" :disabled="cargando || !visibles.length" @click="descargarPDF()">Descargar listas (PDF oficio)</button><button class="btn btn-outline-primary" :disabled="cargando || !visibles.length" @click="descargar()">CSV</button></div>
+ <section v-for="categoria in grupos" :key="categoria.tipo" class="category-section"><h4>{{ categoria.titulo }}</h4><p v-if="!categoria.clubes.length" class="text-muted">No hay alumnos para estos filtros.</p><article v-for="g in categoria.clubes" :key="g.nombre" class="club-list"><header><h5>{{ g.nombre }}</h5><span>{{ g.alumnos.length }} alumnos</span><button class="btn btn-sm btn-outline-primary" @click="descargarPDF(categoria,g)">Descargar club (PDF oficio)</button></header><div class="table-responsive"><table class="table"><thead><tr><th>Apellidos y nombre</th><th>Número de control</th><th>Periodo</th><th>Constancia</th></tr></thead><tbody><tr v-for="a in g.alumnos" :key="a.id"><td>{{ nombre(a) }}</td><td>{{ a.numeroControl }}</td><td>{{ a.periodo }}</td><td>{{ a.apto ? 'Cumple los requisitos' : a.motivo || 'Pendiente' }}</td></tr></tbody></table></div></article></section>
+</section>
+</template>
+<script>
+import api from '../servicios/cliente-http';
+import { crearListasPDF, crearListasCalendarioPDF } from '../servicios/listas-pdf';
+export default {
+ props:{clubs:{type:Array,default:()=>[]}},
+ data:()=>({calendario:null,alumnos:[],periodos:[],periodo:'',club:'',busqueda:'',cargando:true,error:''}),
+ computed:{
+ grupos(){return [{tipo:"DEPORTIVO",titulo:"Deportivos"},{tipo:"CULTURAL",titulo:"Culturales"},{tipo:"OTRO",titulo:"Sin categoría asignada"}].map(c=>({...c,clubes:this.clubes.map(nombre=>({nombre,alumnos:this.visibles.filter(a=>a.club===nombre && this.categoria(a)===c.tipo)})).filter(g=>g.alumnos.length)})).filter(c=>c.tipo!=="OTRO" || c.clubes.length);},clubes(){return [...new Set(this.alumnos.map(a=>a.club).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));},visibles(){const t=this.normalizar(this.busqueda);return this.alumnos.filter(a=>(!this.periodo || String(a.periodo_id)===this.periodo)&&(!this.club || a.club===this.club)&&this.normalizar(this.nombre(a)+' '+a.numeroControl).includes(t)).sort((a,b)=>this.nombre(a).localeCompare(this.nombre(b),'es'));}},
+ async mounted(){try{const [a,p,c]=await Promise.all([api.get('/constancias'),api.get('/periodos'),api.get('/config?clave=listas_calendario')]);if(c.data.data?.valor){this.calendario=JSON.parse(c.data.data.valor);this.periodo=String(this.calendario.periodo_id);}this.alumnos=a.data.data || [];this.periodos=p.data.data || [];}catch(e){this.error=e.response?.data?.statusMessage || 'No se pudieron cargar las listas.';}finally{this.cargando=false;}},
+ methods:{descargarPDF(categoria,club){this.error="";try{const grupos=club?[{...categoria,clubes:[club]}]:this.grupos;(this.calendario && String(this.calendario.periodo_id)===String(this.periodo) ? crearListasCalendarioPDF(grupos,this.calendario) : crearListasPDF(grupos)).save("Lista_"+(club?.nombre || "todos_los_clubes").replace(/[^\p{L}\p{N} _-]/gu,"_")+"_oficio.pdf");}catch(e){this.error=e.message || "No se pudo generar el PDF.";}},categoria(a){const club=this.clubs.find(c=>Number(c.id)===Number(a.id_club) || c.nombre===a.club);const tipo=String(club?.tipo || "").toUpperCase();return ["DEPORTIVO","CULTURAL"].includes(tipo)?tipo:"OTRO";},nombre(a){return [a.apellidoP,a.apellidoM,a.nombre].filter(Boolean).join(' ');},normalizar(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();},descargar(alumnos=this.grupos.flatMap(c=>c.clubes.flatMap(g=>g.alumnos)),titulo="alumnos"){const celda=v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const filas=[['Alumno','Número de control','Club','Periodo','Constancia'],...alumnos.map(a=>[this.nombre(a),a.numeroControl,a.club,a.periodo,a.apto?'Cumple los requisitos':a.motivo])];const blob=new Blob(['\ufeff'+filas.map(f=>f.map(celda).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='Lista_'+titulo.replace(/[^\p{L}\p{N} _-]/gu,'_')+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}
+};
+</script>
+<style scoped>.lists-page{background:#f8fbff;padding:24px;border-radius:24px}label{font-weight:600}.table-responsive{max-height:65vh;overflow:auto}thead{position:sticky;top:0;z-index:1;background:#e6efff}</style>
+
+<style scoped>.category-section{margin-top:32px}.category-section>h4{font-size:1.35rem;border-bottom:2px solid #d7e4f6;padding-bottom:12px}.club-list{border:1px solid #e0e8f4;border-radius:18px;background:white;margin:18px 0;overflow:hidden}.club-list header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#edf3fc;padding:16px}.club-list h5{margin:0;flex:1}.club-list header span{color:#60728d;font-size:.8rem}</style>

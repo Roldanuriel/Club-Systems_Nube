@@ -1,0 +1,23 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.nuxt": true,
+    "**/.output": true,
+    "**/.npm-cache": true,
+    "**/.postgresql": true,
+    "**/.data": true,
+    "dist": true,
+    "release": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.nuxt": true,
+    "**/.output": true,
+    "**/.npm-cache": true,
+    "**/.postgresql": true,
+    "**/.data": true,
+    "dist": true,
+    "release": true,
+    "respaldos": true
+  }
+}
