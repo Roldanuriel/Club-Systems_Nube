@@ -13,12 +13,12 @@ export async function requireUser(event: H3Event, allowedRoles?: UserRole[]) {
   const value = bearerToken(event);
   if (!value) throw createError({
     statusCode: 401,
-    statusMessage: 'No autenticado'
+    message: 'No autenticado'
   });
   const token = await validateToken(value, 'SESSION');
   if (!token) throw createError({
     statusCode: 401,
-    statusMessage: 'Sesión inválida o expirada'
+    message: 'Sesión inválida o expirada'
   });
   const [rows] = await db().execute<UserRow[]>(`SELECT u.id, u.usuario, u.nombre, u.apellidoP, u.apellidoM,
             u.tipo, COALESCE(r.nombre, u.tipo) AS rol, u.club_asignado

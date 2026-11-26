@@ -23,7 +23,7 @@ export default defineEventHandler(async event => {
   if (!validatedBody.success) {
     throw createError({
       statusCode: 422,
-      statusMessage: 'Usuario y contraseña son obligatorios'
+      message: 'Usuario y contraseña son obligatorios'
     });
   }
   const [databaseRows] = await db().execute<LoginUser[]>(`SELECT u.id, u.usuario, u.password, u.nombre, u.apellidoP, u.apellidoM,
@@ -37,7 +37,7 @@ export default defineEventHandler(async event => {
   if (!currentUser || !compatibleHash || !(await bcrypt.compare(validatedBody.data.password, compatibleHash))) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Usuario o contraseña incorrectos'
+      message: 'Usuario o contraseña incorrectos'
     });
   }
   const access = await issueToken(currentUser.id, 'SESSION', 2 * 60 * 60, event);
