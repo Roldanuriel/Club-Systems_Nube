@@ -14,7 +14,6 @@ const {startSync}=require('./sync/servicio.cjs');
 let bindAddress='127.0.0.1';
 const { createServer } = require('node:net');
 const { join } = require('node:path');
-
 app.setName('Club Systems');
 app.setAppUserModelId('com.clubsystems.desktop');
 
@@ -260,9 +259,10 @@ async function startApplication() {
       if(settings.node!==networkConfig.node||settings.seed!==networkConfig.seed)throw Error('La base no corresponde a este servidor vinculado');
       stopSync=startSync({pool:syncPool,config:networkConfig,address:bindAddress,uploads:app.isPackaged?join(process.resourcesPath,'.output','.data','uploads'):join(app.getAppPath(),'.data','uploads'),onStatus:status=>{syncStatus=status;}});
     }
-    if(networkConfig?.role==='server')stopAdvertising=advertise({key:networkConfig.key,id:networkConfig.id,name:hostname(),port,address:bindAddress},error=>console.error('Descubrimiento:',error.message));
+    if(networkConfig?.role==='server'&&bindAddress!=='127.0.0.1')stopAdvertising=advertise({key:networkConfig.key,id:networkConfig.id,name:hostname(),port,address:bindAddress},error=>console.error('Descubrimiento:',error.message));
   }
-  await createMainWindow(await waitForServer(address,remote?null:backendProcess));
+  await waitForServer(address,remote?null:backendProcess);
+  await createMainWindow(address);
 }
 
 app.whenReady().then(startApplication).catch(error => {
@@ -272,12 +272,10 @@ app.whenReady().then(startApplication).catch(error => {
 });
 
 app.on('before-quit', () => {
-  stopping = true;
+  stopping=true;
   stopAdvertising?.();
   stopSync?.().then(()=>syncPool?.end()).catch(console.error);
-  if (backendProcess?.process && !backendProcess.process.killed) {
-    backendProcess.process.kill();
-  }
+  if(backendProcess?.process&&!backendProcess.process.killed)backendProcess.process.kill();
 });
 
 app.on('window-all-closed', () => {

@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { WriteResult, DatabaseRow } from '../tipos/base-de-datos';
 import type { H3Event } from 'h3';
-import { db } from './conexion';
+import { db, transaction } from './conexion';
 export type TokenType = 'SESSION' | 'REFRESH' | 'RESET' | 'CSRF';
 interface TokenRow extends DatabaseRow {
   id: number;
@@ -18,18 +18,20 @@ export async function issueToken(userId: number, type: TokenType, lifetimeSecond
   const selector = randomBytes(16).toString('hex');
   const secret = randomBytes(32).toString('base64url');
   const tokenHash = digest(secret);
-  const expiresAt = new Date(Date.now() + lifetimeSeconds * 1000);
+  if (!Number.isSafeInteger(lifetimeSeconds) || lifetimeSeconds <= 0) throw new Error('Duración de token inválida');
   const ip = event ? getRequestIP(event, {
     xForwardedFor: true
   }) || null : null;
   const userAgent = event ? getHeader(event, 'user-agent') || null : null;
-  const [result] = await db().execute<WriteResult>(`INSERT INTO tokens (token, selector, user_id, tipo, expires_at, activo, ip, user_agent)
-     VALUES (?, ?, ?, ?, ?, 1, ?, ?)`, [tokenHash, selector, userId, type, expiresAt, ip, userAgent]);
-  return {
-    id: result.insertId,
-    value: `${selector}.${secret}`,
-    expiresAt
-  };
+  return transaction(async connection => {
+    const [clock] = await connection.query<DatabaseRow[]>('SELECT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000 AS now_ms');
+    const serverNow = new Date(Number(clock[0]!.now_ms));
+    const expiresAt = new Date(serverNow.getTime() + lifetimeSeconds * 1000);
+    // El instante se convierte a la zona de la sesión PostgreSQL antes de guardarlo.
+    const [result] = await connection.execute<WriteResult>(`INSERT INTO tokens (token, selector, user_id, tipo, expires_at, activo, ip, user_agent)
+       VALUES (?, ?, ?, ?, to_timestamp(? / 1000.0), 1, ?, ?)`, [tokenHash, selector, userId, type, expiresAt.getTime(), ip, userAgent]);
+    return { id: result.insertId, value: `${selector}.${secret}`, expiresAt, serverNow };
+  });
 }
 export async function validateToken(value: string, type: TokenType) {
   const [selector, secret] = value.split('.', 2);
